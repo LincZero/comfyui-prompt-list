@@ -1,4 +1,6 @@
 from inspect import cleandoc
+
+# 这是一个节点，将通过 `NODE_CLASS_MAPPINGS` 进行声明暴露
 class Example:
     """
     一个示例节点
@@ -34,27 +36,30 @@ class Example:
     @classmethod
     def INPUT_TYPES(s):
         """
-            返回一个字典，其中包含所有输入字段的配置。
-            一些类型（字符串）："MODEL"、"VAE"、"CLIP"、"CONDITIONING"、"LATENT"、"IMAGE"、"INT"、"STRING"、"FLOAT"。
-            输入类型 "INT"、"STRING" 或 "FLOAT" 是节点上字段的特殊值。
-            类型可以是一个列表，用于选择。
-
-            返回：`dict`：
-                - 键 input_fields_group（`string`）：可以是 required、hidden 或 optional。节点类必须具有属性 `required`
-                - 值 input_fields（`dict`）：包含输入字段配置：
-                    * 键 field_name（`string`）：入口点方法的参数名称
-                    * 值 field_config（`tuple`）：
-                        + 第一个值是一个字符串，表示字段类型，或用于选择的列表。
-                        + 第二个值是类型 "INT"、"STRING" 或 "FLOAT" 的配置。
+        该节点: 这里有五个输入字段：
+        - image。类型 Image
+          tooltip 会在鼠标悬浮在输入上时弹出说明。
+        - int_field。类型 INT
+        - float_field。类型 FLOAT
+        - print_to_screen。类型枚举
+        - string_field。类型 STRING
+        
+        学习笔记: 类型有: 
+        特殊: "INT"、"STRING"、"FLOAT"
+        其他: "MODEL"、"VAE"、"CLIP"、"CONDITIONING"、"LATENT"、"IMAGE"
+        输入类型  是节点上字段的特殊值。
+        类型可以是一个列表，用于选择。
         """
         return {
             "required": {
-                "image": ("Image", { "tooltip": "This is an image"}),
+                "image": ("Image", {
+                  "tooltip": "This is an image" # 鼠标悬浮注释
+                }),
                 "int_field": ("INT", {
-                    "default": 0,
-                    "min": 0, # 最小值
-                    "max": 4096, # 最大值
-                    "step": 64, # 滑块步长
+                    "default": 0, # 默认值
+                    "min": 0,     # 最小值
+                    "max": 4096,  # 最大值
+                    "step": 64,   # 滑块步长
                     "display": "number" # 仅外观：显示为 "number" 或 "slider"
                 }),
                 "float_field": ("FLOAT", {
@@ -62,7 +67,7 @@ class Example:
                     "min": 0.0,
                     "max": 10.0,
                     "step": 0.01,
-                    "round": 0.001, # 表示要舍入到的精度的值，默认将设置为步长值。可以设置为 False 以禁用舍入。
+                    "round": 0.001, # 要舍入到的精度的值，默认为步长值。可以设置为 False 以禁用舍入
                     "display": "number"}),
                 "print_to_screen": (["enable", "disable"],),
                 "string_field": ("STRING", {
@@ -72,15 +77,13 @@ class Example:
             },
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    #RETURN_NAMES = ("image_output_name",)
-    DESCRIPTION = cleandoc(__doc__)
-    FUNCTION = "test"
-
-    #OUTPUT_NODE = False
+    CATEGORY = "Example" # 分类
+    RETURN_TYPES = ("IMAGE",) # 返回值类型
+    #RETURN_NAMES = ("image_output_name",) 返回值名，默认名是 "返回值类型"
+    DESCRIPTION = cleandoc(__doc__) # 获取文档字符串充当节点描述，当鼠标悬浮在节点上时会显示这个
+    FUNCTION = "test" # 执行的方法名 (自定义函数的名字，这里不是测试函数的意思)
+    #OUTPUT_NODE = False # (默认是false) true则声明这个节点是工作流的终点，而不是中间处理节点
     #OUTPUT_TOOLTIPS = ("",) # 输出节点的工具提示
-
-    CATEGORY = "Example"
 
     def test(self, image, string_field, int_field, float_field, print_to_screen):
         if print_to_screen == "enable":
@@ -94,28 +97,17 @@ class Example:
         return (image,)
 
     """
-        如果任何输入发生变化，节点将始终重新执行，但
-        此方法可用于强制节点在输入未变化时再次执行。
-        你可以让此节点返回一个数字或字符串。此值将与节点上次
-        执行时返回的值进行比较，如果不同，则节点将再次执行。
-        此方法在核心仓库中用于 LoadImage 节点，它们将图像哈希作为字符串返回，如果图像哈希
-        在多次执行之间发生变化，则 LoadImage 节点会再次执行。
+    如果任何输入发生变化，节点将始终重新执行，但此方法可用于强制节点在输入未变化时再次执行。
+    做法:
+    你可以让此节点返回一个数字或字符串。此值将与节点上次
+    执行时返回的值进行比较，如果不同，则节点将再次执行。
+    场景:
+    此方法在核心仓库中用于 LoadImage 节点，它们将图像哈希作为字符串返回，
+    如果图像哈希在多次执行之间发生变化，则 LoadImage 节点会再次执行。
     """
     #@classmethod
     #def IS_CHANGED(s, image, string_field, int_field, float_field, print_to_screen):
     #    return ""
-
-
-# 一个字典，包含要导出的所有节点及其名称
-# 注意：名称应全局唯一
-NODE_CLASS_MAPPINGS = {
-    "Example": Example
-}
-
-# 一个字典，包含节点的友好/人类可读标题
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "Example": "Example Node"
-}
 
 class ImageSelector:
     CATEGORY = "example"
@@ -124,3 +116,16 @@ class ImageSelector:
         return { "required":  { "images": ("IMAGE",), } }
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "choose_image"
+
+# 一个字典，包含要导出的所有节点及其名称
+# 注意：名称应全局唯一
+NODE_CLASS_MAPPINGS = {
+    "Example": Example,
+    "ImageSelector": ImageSelector,
+}
+
+# 一个字典，包含节点的友好/人类可读标题
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "Example": "Example Node",
+    "ImageSelector": "Image Selector",
+}
