@@ -1,32 +1,32 @@
 from inspect import cleandoc
 class Example:
     """
-    A example node
+    一个示例节点
 
-    Class methods
+    类方法
     -------------
-    INPUT_TYPES (dict):
-        Tell the main program input parameters of nodes.
-    IS_CHANGED:
-        optional method to control when the node is re executed.
+    INPUT_TYPES (dict)：
+        告诉主程序节点的输入参数。
+    IS_CHANGED：
+        可选方法，用于控制节点何时重新执行。
 
-    Attributes
+    属性
     ----------
-    RETURN_TYPES (`tuple`):
-        The type of each element in the output tulple.
-    RETURN_NAMES (`tuple`):
-        Optional: The name of each output in the output tulple.
-    FUNCTION (`str`):
-        The name of the entry-point method. For example, if `FUNCTION = "execute"` then it will run Example().execute()
-    OUTPUT_NODE ([`bool`]):
-        If this node is an output node that outputs a result/image from the graph. The SaveImage node is an example.
-        The backend iterates on these output nodes and tries to execute all their parents if their parent graph is properly connected.
-        Assumed to be False if not present.
-    CATEGORY (`str`):
-        The category the node should appear in the UI.
-    execute(s) -> tuple || None:
-        The entry point method. The name of this method must be the same as the value of property `FUNCTION`.
-        For example, if `FUNCTION = "execute"` then this method's name must be `execute`, if `FUNCTION = "foo"` then it must be `foo`.
+    RETURN_TYPES (`tuple`)：
+        输出元组中每个元素的类型。
+    RETURN_NAMES (`tuple`)：
+        可选：输出元组中每个输出的名称。
+    FUNCTION (`str`)：
+        入口点方法的名称。例如，如果 `FUNCTION = "execute"`，则将运行 Example().execute()
+    OUTPUT_NODE ([`bool`])：
+        如果此节点是输出节点，从图中输出结果/图像。SaveImage 节点就是一个例子。
+        后端会遍历这些输出节点，并且如果它们的父图正确连接，则尝试执行它们的所有父节点。
+        如果不存在，则假定为 False。
+    CATEGORY (`str`)：
+        节点应在 UI 中出现的类别。
+    execute(s) -> tuple || None：
+        入口点方法。此方法的名称必须与属性 `FUNCTION` 的值相同。
+        例如，如果 `FUNCTION = "execute"`，则此方法名必须为 `execute`；如果 `FUNCTION = "foo"`，则必须为 `foo`。
     """
     def __init__(self):
         pass
@@ -34,39 +34,39 @@ class Example:
     @classmethod
     def INPUT_TYPES(s):
         """
-            Return a dictionary which contains config for all input fields.
-            Some types (string): "MODEL", "VAE", "CLIP", "CONDITIONING", "LATENT", "IMAGE", "INT", "STRING", "FLOAT".
-            Input types "INT", "STRING" or "FLOAT" are special values for fields on the node.
-            The type can be a list for selection.
+            返回一个字典，其中包含所有输入字段的配置。
+            一些类型（字符串）："MODEL"、"VAE"、"CLIP"、"CONDITIONING"、"LATENT"、"IMAGE"、"INT"、"STRING"、"FLOAT"。
+            输入类型 "INT"、"STRING" 或 "FLOAT" 是节点上字段的特殊值。
+            类型可以是一个列表，用于选择。
 
-            Returns: `dict`:
-                - Key input_fields_group (`string`): Can be either required, hidden or optional. A node class must have property `required`
-                - Value input_fields (`dict`): Contains input fields config:
-                    * Key field_name (`string`): Name of a entry-point method's argument
-                    * Value field_config (`tuple`):
-                        + First value is a string indicate the type of field or a list for selection.
-                        + Secound value is a config for type "INT", "STRING" or "FLOAT".
+            返回：`dict`：
+                - 键 input_fields_group（`string`）：可以是 required、hidden 或 optional。节点类必须具有属性 `required`
+                - 值 input_fields（`dict`）：包含输入字段配置：
+                    * 键 field_name（`string`）：入口点方法的参数名称
+                    * 值 field_config（`tuple`）：
+                        + 第一个值是一个字符串，表示字段类型，或用于选择的列表。
+                        + 第二个值是类型 "INT"、"STRING" 或 "FLOAT" 的配置。
         """
         return {
             "required": {
                 "image": ("Image", { "tooltip": "This is an image"}),
                 "int_field": ("INT", {
                     "default": 0,
-                    "min": 0, #Minimum value
-                    "max": 4096, #Maximum value
-                    "step": 64, #Slider's step
-                    "display": "number" # Cosmetic only: display as "number" or "slider"
+                    "min": 0, # 最小值
+                    "max": 4096, # 最大值
+                    "step": 64, # 滑块步长
+                    "display": "number" # 仅外观：显示为 "number" 或 "slider"
                 }),
                 "float_field": ("FLOAT", {
                     "default": 1.0,
                     "min": 0.0,
                     "max": 10.0,
                     "step": 0.01,
-                    "round": 0.001, #The value represeting the precision to round to, will be set to the step value by default. Can be set to False to disable rounding.
+                    "round": 0.001, # 表示要舍入到的精度的值，默认将设置为步长值。可以设置为 False 以禁用舍入。
                     "display": "number"}),
                 "print_to_screen": (["enable", "disable"],),
                 "string_field": ("STRING", {
-                    "multiline": False, #True if you want the field to look like the one on the ClipTextEncode node
+                    "multiline": False, # 如果你希望该字段看起来像 ClipTextEncode 节点上的字段，则为 True
                     "default": "Hello World!"
                 }),
             },
@@ -78,7 +78,7 @@ class Example:
     FUNCTION = "test"
 
     #OUTPUT_NODE = False
-    #OUTPUT_TOOLTIPS = ("",) # Tooltips for the output node
+    #OUTPUT_TOOLTIPS = ("",) # 输出节点的工具提示
 
     CATEGORY = "Example"
 
@@ -89,30 +89,38 @@ class Example:
                 int_field: {int_field}
                 float_field: {float_field}
             """)
-        #do some processing on the image, in this example I just invert it
+        #对图像做一些处理，在这个例子中我只是将其反转
         image = 1.0 - image
         return (image,)
 
     """
-        The node will always be re executed if any of the inputs change but
-        this method can be used to force the node to execute again even when the inputs don't change.
-        You can make this node return a number or a string. This value will be compared to the one returned the last time the node was
-        executed, if it is different the node will be executed again.
-        This method is used in the core repo for the LoadImage node where they return the image hash as a string, if the image hash
-        changes between executions the LoadImage node is executed again.
+        如果任何输入发生变化，节点将始终重新执行，但
+        此方法可用于强制节点在输入未变化时再次执行。
+        你可以让此节点返回一个数字或字符串。此值将与节点上次
+        执行时返回的值进行比较，如果不同，则节点将再次执行。
+        此方法在核心仓库中用于 LoadImage 节点，它们将图像哈希作为字符串返回，如果图像哈希
+        在多次执行之间发生变化，则 LoadImage 节点会再次执行。
     """
     #@classmethod
     #def IS_CHANGED(s, image, string_field, int_field, float_field, print_to_screen):
     #    return ""
 
 
-# A dictionary that contains all nodes you want to export with their names
-# NOTE: names should be globally unique
+# 一个字典，包含要导出的所有节点及其名称
+# 注意：名称应全局唯一
 NODE_CLASS_MAPPINGS = {
     "Example": Example
 }
 
-# A dictionary that contains the friendly/humanly readable titles for the nodes
+# 一个字典，包含节点的友好/人类可读标题
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Example": "Example Node"
 }
+
+class ImageSelector:
+    CATEGORY = "example"
+    @classmethod    
+    def INPUT_TYPES(s):
+        return { "required":  { "images": ("IMAGE",), } }
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "choose_image"
