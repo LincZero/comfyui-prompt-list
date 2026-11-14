@@ -1,1 +1,1 @@
-"""Unit test package for promptlist."""
+"""Unit test package for prompt_list."""

@@ -1,4 +1,4 @@
-* promptlist version:
+* "Prompt List" version:
 * Python version:
 * Operating System:
 

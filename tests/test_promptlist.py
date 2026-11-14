@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-"""Tests for `promptlist` package."""
+"""Tests for `prompt_list` package."""
 
 import pytest
-from src.promptlist.nodes import Example
+from src.prompt_list.nodes import Example
 
 @pytest.fixture
 def example_node():

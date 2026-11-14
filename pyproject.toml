@@ -3,11 +3,11 @@ requires = ["setuptools>=70.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "promptlist"
+name = "prompt-list"
 version = "0.0.1"
 description = "A collection of custom nodes for ComfyUI"
 authors = [
-  {name = "PromptList", email = "762699299@qq.com"}
+  {name = "Prompt List", email = "762699299@qq.com"}
 ]
 readme = "README.md"
 license = {text = "GNU General Public License v3"}
@@ -30,17 +30,17 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/LincZero/promptlist"
-BugTracker = "https://github.com/LincZero/promptlist/issues"
-Documentation = "https://github.com/LincZero/promptlist/wiki"
+Repository = "https://github.com/LincZero/prompt-list"
+BugTracker = "https://github.com/LincZero/prompt-list/issues"
+Documentation = "https://github.com/LincZero/prompt-list/wiki"
 
 
 [tool.comfy]
 PublisherId = "LincZero"
-DisplayName = "PromptList"
+DisplayName = "Promp tList"
 Icon = ""
 Tags = []
-Repository = "https://github.com/LincZero/promptlist"
+Repository = "https://github.com/LincZero/prompt-list"
 
 includes = []
 

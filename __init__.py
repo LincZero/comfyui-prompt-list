@@ -1,4 +1,4 @@
-"""Top-level package for promptlist."""
+"""Top-level package for prompt_list."""
 
 __all__ = [
     "NODE_CLASS_MAPPINGS",
@@ -6,11 +6,11 @@ __all__ = [
     "WEB_DIRECTORY",
 ]
 
-__author__ = """PromptList"""
+__author__ = """Prompt List"""
 __email__ = "762699299@qq.com"
 __version__ = "0.0.1"
 
-from .src.promptlist.nodes import NODE_CLASS_MAPPINGS
-from .src.promptlist.nodes import NODE_DISPLAY_NAME_MAPPINGS
+from .src.prompt_list.nodes import NODE_CLASS_MAPPINGS
+from .src.prompt_list.nodes import NODE_DISPLAY_NAME_MAPPINGS
 
 WEB_DIRECTORY = "./web"

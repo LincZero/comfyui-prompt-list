@@ -1,4 +1,4 @@
-# PromptList
+# Prompt List
 
 一个用于 ComfyUI 的自定义节点集合
 
@@ -20,7 +20,6 @@
 1. 在 ComfyUI-Manager 中查找此扩展。如果你要手动安装，请将此仓库克隆到 `ComfyUI/custom_nodes` 下。
 1. 重启 ComfyUI。
 
-- A list of features
 # 功能
 
 - 功能列表
@@ -30,7 +29,7 @@
 要安装开发依赖和 pre-commit（将运行 ruff hook），请执行：
 
 ```bash
-cd promptlist
+cd prompt-list
 pip install -e .[dev]
 pre-commit install
 ```
@@ -51,7 +50,7 @@ git push
 
 ## 编写自定义节点
 
-一个示例自定义节点位于 [node.py](src/promptlist/nodes.py)。要了解更多信息，请阅读[文档](https://docs.comfy.org/essentials/custom_node_overview)。
+一个示例自定义节点位于 [node.py](src/prompt_list/nodes.py)。要了解更多信息，请阅读[文档](https://docs.comfy.org/essentials/custom_node_overview)。
 
 
 ## 测试
