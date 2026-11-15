@@ -52,7 +52,7 @@ class Example:
         """
         return {
             "required": {
-                "image": ("Image", {
+                "image": ("IMAGE", {
                   "tooltip": "This is an image" # 鼠标悬浮注释
                 }),
                 "int_field": ("INT", {
@@ -85,6 +85,8 @@ class Example:
     #OUTPUT_NODE = False # (默认是false) true则声明这个节点是工作流的终点，而不是中间处理节点
     #OUTPUT_TOOLTIPS = ("",) # 输出节点的工具提示
 
+    # 功能: 反转图像
+    # 参数:  self + 提前声明的5个参数
     def test(self, image, string_field, int_field, float_field, print_to_screen):
         if print_to_screen == "enable":
             print(f"""Your input contains:
@@ -109,6 +111,8 @@ class Example:
     #def IS_CHANGED(s, image, string_field, int_field, float_field, print_to_screen):
     #    return ""
 
+import torch
+
 class ImageSelector:
     CATEGORY = "example"
     @classmethod    
@@ -116,6 +120,13 @@ class ImageSelector:
         return { "required":  { "images": ("IMAGE",), } }
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "choose_image"
+
+    # 功能: 
+    def choose_image(self, images):
+        brightness = list(torch.mean(image.flatten()).item() for image in images)
+        brightest = brightness.index(max(brightness))
+        result = images[brightest].unsqueeze(0)
+        return (result,)
 
 # 一个字典，包含要导出的所有节点及其名称
 # 注意：名称应全局唯一
