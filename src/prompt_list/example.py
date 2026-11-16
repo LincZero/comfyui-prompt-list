@@ -35,7 +35,7 @@ class Example:
     CATEGORY = "Prompt List" # 分类
     RETURN_TYPES = ("IMAGE",) # 返回值类型
     #RETURN_NAMES = ("image_output_name",) 返回值名，默认名是 "返回值类型"
-    DESCRIPTION = cleandoc(__doc__) # 获取文档字符串充当节点描述，当鼠标悬浮在节点上时会显示这个
+    DESCRIPTION = cleandoc(__doc__ or "") # 获取文档字符串充当节点描述，当鼠标悬浮在节点上时会显示这个
     FUNCTION = "test" # 执行的方法名 (自定义函数的名字，这里不是测试函数的意思)
     #OUTPUT_NODE = False # (默认是false) true则声明这个节点是工作流的终点，而不是中间处理节点
     #OUTPUT_TOOLTIPS = ("",) # 输出节点的工具提示
@@ -120,14 +120,13 @@ class ImageSelector:
 
     CATEGORY = "Prompt List"
     RETURN_TYPES = ("IMAGE",)
-    DESCRIPTION = cleandoc(__doc__)
+    DESCRIPTION = cleandoc(__doc__ or "")
     FUNCTION = "choose_image"
 
     @classmethod    
     def INPUT_TYPES(s):
         return { "required":  { "images": ("IMAGE",), } }
 
-    # 功能: 
     def choose_image(self, images):
         brightness = list(torch.mean(image.flatten()).item() for image in images)
         brightest = brightness.index(max(brightness))
