@@ -4,18 +4,22 @@
   - 取值
   - 修改
   - 遍历
+
+注意：这里的列表是 python 列表，而非 ComfyUI 列表。不是顺序任务序列，而是单个数据。
 """
 
 from inspect import cleandoc
 import json
 
+
 class PromptList_CreateFromString:
     """将多行文本按行分割为提示词列表，忽略空行。"""
 
     CATEGORY = "Prompt List"
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = ("STRING_PYLIST",)
     RETURN_NAMES = ("prompt_list",)
-    OUTPUT_IS_LIST = (True,)          # 输出的是列表，而非单条字符串
+    #INPUT_IS_LIST = False
+    #OUTPUT_IS_LIST = (False,)
     DESCRIPTION = cleandoc(__doc__ or "")
     FUNCTION = "function"
 
@@ -31,99 +35,79 @@ class PromptList_CreateFromString:
         }
 
     def function(self, text):
-        lines = text.splitlines()
-        result = [line.strip() for line in lines if line.strip()]
+        if not isinstance(text, str):
+            raise TypeError(f"text 必须为字符串，收到: {type(text).__name__}")
+
+        result = [line.strip() for line in text.splitlines() if line.strip()]
         return (result,)
+
 
 class PromptList_Create:
-    """通过动态数量的文本输入构造提示词列表。
-
-    - text_1 可直接在节点上编辑
-    - text_2 ~ text_N 为可选插槽，按需连线即可，未连接的会被自动跳过
-    - 空白字符串（strip 后为空）不会加入列表
-    """
+    """从动态数量的文本输入创建整张提示词列表：每项一个，空白项忽略。"""
 
     CATEGORY = "Prompt List"
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = ("STRING_PYLIST",)
     RETURN_NAMES = ("prompt_list",)
-    OUTPUT_IS_LIST = (True,)
-    DESCRIPTION = cleandoc(__doc__ or "")
-    FUNCTION = "function"
-
-    # 可扩展的插槽数量上限，用户按需使用即可实现"动态数量"
-    MAX_INPUTS = 20
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        optional = {}
-        for i in range(2, cls.MAX_INPUTS + 1):
-            optional[f"text_{i}"] = ("STRING", {
-                "multiline": True,
-                "forceInput": True,
-            })
-        return {
-            "required": {
-                "text_1": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "tooltip": "首个文本，可直接编辑；其余 text_2 ~ text_N 通过连线传入",
-                }),
-            },
-            "optional": optional,
-        }
-
-    def function(self, text_1="", **kwargs):
-        result = []
-        if isinstance(text_1, str) and text_1.strip():
-            result.append(text_1.strip())
-        for i in range(2, self.MAX_INPUTS + 1):
-            value = kwargs.get(f"text_{i}")
-            if isinstance(value, str) and value.strip():
-                result.append(value.strip())
-        return (result,)
-
-class PromptList_Show:
-    """显示整个提示词列表（以换行拼接），同时可继续向下游传递列表。"""
-
-    CATEGORY = "Prompt List"
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("prompt_list",)
-    INPUT_IS_LIST = True              # 接收整个列表，而非逐项调用
-    OUTPUT_IS_LIST = (True,)
-    OUTPUT_NODE = True                # 作为输出节点，在 UI 中展示内容
     DESCRIPTION = cleandoc(__doc__ or "")
     FUNCTION = "function"
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {
+        # 基础输入：控制动态文本输入的数量
+        base_inputs = {
             "required": {
-                "prompt_list": ("STRING", {
-                    "forceInput": True
+                "inputcount": ("INT", {
+                    "default": 2,
+                    "min": 1,
+                    "max": 100, # 可根据需要调整上限
+                    "step": 1,
+                    "tooltip": "设置文本输入项的数量。调整后点击“Update Inputs”按钮刷新端口。",
                 }),
             }
         }
 
-    def function(self, prompt_list):
-        # display_text = "\n".join(prompt_list) if isinstance(prompt_list, list) else str(prompt_list)
-        if not isinstance(prompt_list, list):
-            prompt_list = [prompt_list]
-        # ensure_ascii=False 保证中文等非 ASCII 字符正常显示而非转义
-        display_text = json.dumps(prompt_list, ensure_ascii=False, indent=2)
-        return {
-            "ui": {"text": [display_text]},
-            "result": (prompt_list,),
-        }
+        # 动态生成 text_1, text_2, ... 等输入
+        # 这里默认生成 2 个，前端按钮会通过 JavaScript 重新触发 INPUT_TYPES
+        dynamic_inputs = {}
+        for i in range(1, 3): 
+            key = f"text_{i}"
+            dynamic_inputs[key] = ("STRING", {
+                "multiline": True,
+                "default": "",
+                "tooltip": f"第 {i} 项提示词内容",
+            })
+
+        # 合并输入
+        base_inputs["required"].update(dynamic_inputs)
+        return base_inputs
+
+    def function(self, inputcount, **kwargs):
+        # 收集所有非空的文本输入
+        # 根据键名 text_1, text_2... 排序以确保顺序与界面一致
+        sorted_keys = sorted(
+            [k for k in kwargs if k.startswith("text_")], 
+            key=lambda x: int(x.split("_")[1])
+        )
+
+        result = []
+        for key in sorted_keys:
+            value = kwargs.get(key, "").strip()
+            if value: # 忽略空白项
+                result.append(value)
+                
+        # 如果希望强制返回 inputcount 数量的项（即使有些为空），可以改用下面的逻辑：
+        # result = [kwargs.get(f"text_{i}", "").strip() for i in range(1, inputcount + 1)]
+        
+        return (result,)
 
 
-class PromptList_Modify:
-    """根据索引修改列表中的某一项，输出修改后的新列表。"""
+class PromptList_Show:
+    """以 JSON 形式（自动换行缩进）显示整张列表；同时把整张列表原样透传给下游。"""
 
     CATEGORY = "Prompt List"
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = ("STRING_PYLIST",)
     RETURN_NAMES = ("prompt_list",)
-    INPUT_IS_LIST = True
-    OUTPUT_IS_LIST = (True,)
+    OUTPUT_NODE = True                  # 作为输出节点，在 UI 上渲染结果
     DESCRIPTION = cleandoc(__doc__ or "")
     FUNCTION = "function"
 
@@ -131,7 +115,78 @@ class PromptList_Modify:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "prompt_list": ("STRING", {"forceInput": True}),
+                "prompt_list": ("STRING_PYLIST",),
+            }
+        }
+
+    def function(self, prompt_list):
+        if not isinstance(prompt_list, (list, tuple)):
+            raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
+        # ensure_ascii=False 让中文原样输出；indent=2 自动换行并缩进。
+        display_text = json.dumps(list(prompt_list), ensure_ascii=False, indent=2)
+        return {
+            "ui": {"text": [display_text]},
+            "result": (list(prompt_list),),
+        }
+
+
+class PromptList_GetItem:
+    """根据索引获取列表中的某一项。"""
+
+    CATEGORY = "Prompt List"
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("string",)
+    #INPUT_IS_LIST = False
+    #OUTPUT_IS_LIST = (False,)
+    DESCRIPTION = cleandoc(__doc__ or "")
+    FUNCTION = "function"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt_list": ("STRING_PYLIST", {"forceInput": True}),
+                "index": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 9999,
+                    "step": 1,
+                    "tooltip": "要获取的列表索引（从 0 开始）",
+                }),
+            }
+        }
+
+    def function(self, prompt_list, index):
+        if not isinstance(index, int) or isinstance(index, bool):
+            raise TypeError(f"index 必须为整数，收到: {type(index).__name__}")
+        if not isinstance(prompt_list, (list, tuple)):
+            raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
+        if index < 0 or index >= len(prompt_list):
+            raise IndexError(
+                f"索引 {index} 越界：列表长度为 {len(prompt_list)}，"
+                f"有效范围为 [0, {len(prompt_list) - 1}]"
+            )
+
+        result = list(prompt_list)
+        return (result[index],)
+
+
+class PromptList_SetItem:
+    """根据索引修改列表中的某一项，输出修改后的新列表。"""
+
+    CATEGORY = "Prompt List"
+    RETURN_TYPES = ("STRING_PYLIST",)
+    RETURN_NAMES = ("prompt_list",)
+    #INPUT_IS_LIST = False
+    #OUTPUT_IS_LIST = (False,)
+    DESCRIPTION = cleandoc(__doc__ or "")
+    FUNCTION = "function"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt_list": ("STRING_PYLIST", {"forceInput": True}),
                 "index": ("INT", {
                     "default": 0,
                     "min": 0,
@@ -148,15 +203,10 @@ class PromptList_Modify:
         }
 
     def function(self, prompt_list, index, new_value):
-        index = index[0] if isinstance(index, list) else index
-        new_value = new_value[0] if isinstance(new_value, list) else new_value
-
-        if not isinstance(prompt_list, list):
-            prompt_list = [prompt_list]
-
-        # 下标溢出 / 非法时直接抛出异常，ComfyUI 报错终止执行
         if not isinstance(index, int) or isinstance(index, bool):
             raise TypeError(f"index 必须为整数，收到: {type(index).__name__}")
+        if not isinstance(prompt_list, (list, tuple)):
+            raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
         if index < 0 or index >= len(prompt_list):
             raise IndexError(
                 f"索引 {index} 越界：列表长度为 {len(prompt_list)}，"
@@ -168,13 +218,12 @@ class PromptList_Modify:
         return (result,)
 
 
-class PromptList_Iterate:
+class PromptList_JoinToString:
     """将列表遍历并拼接为一个字符串，可用分隔符控制格式。"""
 
     CATEGORY = "Prompt List"
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("joined_text",)
-    INPUT_IS_LIST = True
     DESCRIPTION = cleandoc(__doc__ or "")
     FUNCTION = "function"
 
@@ -182,7 +231,7 @@ class PromptList_Iterate:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "prompt_list": ("STRING", {"forceInput": True}),
+                "prompt_list": ("STRING_PYLIST", {"forceInput": True}),
                 "separator": ("STRING", {
                     "default": ", ",
                     "multiline": False,
@@ -192,7 +241,9 @@ class PromptList_Iterate:
         }
 
     def function(self, prompt_list, separator):
-        separator = separator[0] if isinstance(separator, list) else separator
-        if not isinstance(prompt_list, list):
-            prompt_list = [prompt_list]
+        if not isinstance(separator, str):
+            raise TypeError(f"separator 必须为字符串，收到: {type(separator).__name__}")
+        if not isinstance(prompt_list, (list, tuple)):
+            raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
+        # 若元素含非 str，join 会自然抛 TypeError，语义清晰。
         return (separator.join(prompt_list),)
