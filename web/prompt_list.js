@@ -41,14 +41,16 @@ app.registerExtension({
 });
 
 
-// ------------ PromptList CreateFromStrings：按 inputcount 增删文本输入框 ------------
+// ------------ 按 inputcount 增删文本输入框（CreateFromStrings 两个版本 + BatchSet） ------------
 
 // [warning] PromptList_CreateFromStrings 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
 
-// 单行 / 多行两个版本共用同一套逻辑，只有文本框的 multiline 不同
+// 单行 / 多行两个版本共用同一套逻辑，只有文本框的 multiline 不同；
+// 批量修改也复用这套输入框机制（每项一个多行输入框，默认内容 {{item}} = 保留原值）
 const CREATE_NODES = {
-    "PromptList CreateFromStrings": { multiline: false },
-    "PromptList CreateFromStringsMulti": { multiline: true },
+    "PromptList CreateFromStrings": { multiline: false, default: "" },
+    "PromptList CreateFromStringsMulti": { multiline: true, default: "" },
+    "PromptList BatchSet": { multiline: true, default: "{{item}}" },
 };
 const COUNT_WIDGET = "inputcount";
 const TEXT_PREFIX = "text_";
@@ -71,11 +73,12 @@ const clampCount = (value) => {
     return Math.min(MAX_TEXT_INPUTS, Math.max(1, count));
 };
 
-function ensureTextInput(node, index, multiline) {
+function ensureTextInput(node, index, config) {
     const name = textInputName(index);
     let changed = false;
     if (!getTextWidget(node, index)) {
-        const { widget } = ComfyWidgets["STRING"](node, name, ["STRING", { multiline, default: "" }], app);
+        const options = { multiline: config.multiline, default: config.default };
+        const { widget } = ComfyWidgets["STRING"](node, name, ["STRING", options], app);
         widget.tooltip = `第 ${index} 项提示词内容`;
         changed = true;
     }
@@ -100,7 +103,7 @@ function removeTextInput(node, index) {
 }
 
 // 让 text_1..text_count 和 inputcount 一一对应；savedValue 用于恢复加载工作流时保存的内容。
-function syncTextInputs(node, count, multiline, savedValue) {
+function syncTextInputs(node, count, config, savedValue) {
     const limit = clampCount(count);
     const highest = Math.max(
         0,
@@ -114,7 +117,7 @@ function syncTextInputs(node, count, multiline, savedValue) {
         changed = true;
     }
     for (let index = 1; index <= limit; index++) {
-        changed = ensureTextInput(node, index, multiline) || changed;
+        changed = ensureTextInput(node, index, config) || changed;
     }
 
     if (savedValue) {
@@ -151,7 +154,7 @@ app.registerExtension({
             if (!countWidget) return r;
 
             const updateButton = node.addWidget("button", UPDATE_BUTTON, null, () => {
-                syncTextInputs(node, countWidget.value, config.multiline);
+                syncTextInputs(node, countWidget.value, config);
             });
             updateButton.serialize = false;          // 不写进工作流
             updateButton.options.serialize = false;  // 不写进 API 格式
@@ -165,7 +168,7 @@ app.registerExtension({
             const countChanged = countWidget.callback;
             countWidget.callback = function (value, canvas) {
                 const result = countChanged?.apply(this, arguments);
-                if (!canvas) syncTextInputs(node, value, config.multiline);
+                if (!canvas) syncTextInputs(node, value, config);
                 return result;
             };
 
@@ -176,14 +179,18 @@ app.registerExtension({
         nodeType.prototype.onConfigure = function (serialisedNode) {
             const r = onConfigure?.apply(this, arguments);
 
-            // widget 值按顺序保存：inputcount 是第 0 个，text_N 是第 N 个
+            // widget 值按顺序保存、跳过不序列化的（按钮），所以先算出 text_1 前面有几个可保存的 widget
+            const before = this.widgets.slice(0, this.widgets.indexOf(getTextWidget(this, 1)));
+            const offset = before.filter((widget) => widget.serialize !== false).length;
+
             const named = serialisedNode?.widgets_values_named;
             const positional = serialisedNode?.widgets_values;
             const savedValue = (index) =>
-                named?.[textInputName(index)] ?? (Array.isArray(positional) ? positional[index] : undefined);
+                named?.[textInputName(index)] ??
+                (Array.isArray(positional) ? positional[offset + index - 1] : undefined);
 
             const count = this.widgets?.find((w) => w.name === COUNT_WIDGET)?.value;
-            syncTextInputs(this, count, config.multiline, savedValue);
+            syncTextInputs(this, count, config, savedValue);
 
             return r;
         };

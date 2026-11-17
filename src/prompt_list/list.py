@@ -106,6 +106,7 @@ class PromptList_CreateFromStrings:
             return (self.type,)
 
     MULTILINE = False
+    TEXT_DEFAULT = ""
     CATEGORY = "Prompt List"
     RETURN_TYPES = ("STRING_PYLIST",)
     RETURN_NAMES = ("prompt_list",)
@@ -117,7 +118,7 @@ class PromptList_CreateFromStrings:
         # inputcount 决定界面上的文本输入框数量，前端的 “Update Inputs” 按钮负责增删。
         # 这里只声明 text_1 / text_2，让节点默认可用；其余 text_N 由前端按 inputcount
         # 动态添加，Python 端靠 FlexibleOptionalInputType 接收这些未声明的输入。
-        text_options = {"multiline": cls.MULTILINE, "default": ""}
+        text_options = {"multiline": cls.MULTILINE, "default": cls.TEXT_DEFAULT}
         return {
             "required": {
                 "inputcount": ("INT", {
@@ -265,6 +266,48 @@ class PromptList_SetItem:
 
         result = list(prompt_list)
         result[index] = new_value
+        return (result,)
+
+
+class PromptList_BatchSet(PromptList_CreateFromStrings):
+    """用一组新的文本逐项修改整张提示词列表：一项一个输入框，输入框里可以写多行。
+
+    输入框就是该项的模板：`{{item}}` 代表原来的内容（也是默认值，等于不改），
+    写成 `{{item}}, 新内容` 就是追加、`新内容, {{item}}` 就是头插；
+    不含 `{{item}}` 时直接覆盖该项，留空则清空该项。
+    输入框比列表多时，多出来的非空内容会作为新项追加；列表比输入框多时，
+    多出来的项原样保留（等价于那些项都写了 `{{item}}`）。
+    """
+
+    ITEM = "{{item}}"
+    TEXT_DEFAULT = ITEM
+    MULTILINE = True
+    DESCRIPTION = cleandoc(__doc__ or "")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        inputs = super().INPUT_TYPES()
+        inputs["required"] = {
+            "prompt_list": ("STRING_PYLIST", {"forceInput": True}),
+            **inputs["required"],
+        }
+        return inputs
+
+    def function(self, prompt_list, inputcount, **kwargs):
+        if not isinstance(prompt_list, (list, tuple)):
+            raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
+
+        # 只处理前 inputcount 项；列表更长时，后面的项不参与处理，原样保留（等于那些项写的就是 {{item}}）
+        result = list(prompt_list)
+        for index in range(1, inputcount + 1):
+            text = (kwargs.get(f"text_{index}") or "").strip()
+            if index <= len(result):
+                result[index - 1] = text.replace(self.ITEM, result[index - 1])
+            else:
+                # 列表更短：多出来的框作为新项追加（空框不追加，避免凭空多出空项）
+                value = text.replace(self.ITEM, "")
+                if value.strip():
+                    result.append(value)
         return (result,)
 
 
