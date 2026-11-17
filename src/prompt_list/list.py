@@ -42,8 +42,29 @@ class PromptList_CreateFromString:
         return (result,)
 
 
+# [warning] PromptList_Create 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
 class PromptList_Create:
     """从动态数量的文本输入创建整张提示词列表：每项一个，空白项忽略。"""
+
+    class FlexibleOptionalInputType(dict):
+        """让 INPUT_TYPES 接受任意名字的输入。
+
+        ComfyUI 判断输入是否合法时用的是 `name in INPUT_TYPES()["optional"]`，
+        所以这里对未声明的 key 一律返回 True，并给出统一的类型；已声明的 key
+        仍然返回原本的定义。
+        """
+
+        def __init__(self, type, data=None):
+            super().__init__(data or {})
+            self.type = type
+
+        def __contains__(self, key):
+            return True
+
+        def __getitem__(self, key):
+            if super().__contains__(key):
+                return super().__getitem__(key)
+            return (self.type,)
 
     CATEGORY = "Prompt List"
     RETURN_TYPES = ("STRING_PYLIST",)
@@ -53,51 +74,32 @@ class PromptList_Create:
 
     @classmethod
     def INPUT_TYPES(cls):
-        # 基础输入：控制动态文本输入的数量
-        base_inputs = {
+        # inputcount 决定界面上的文本输入框数量，前端的 “Update Inputs” 按钮负责增删。
+        # 这里只声明 text_1 / text_2，让节点默认可用；其余 text_N 由前端按 inputcount
+        # 动态添加，Python 端靠 FlexibleOptionalInputType 接收这些未声明的输入。
+        return {
             "required": {
                 "inputcount": ("INT", {
                     "default": 2,
                     "min": 1,
-                    "max": 100, # 可根据需要调整上限
+                    "max": 100,  # 与 web/prompt_list.js 里的 MAX_TEXT_INPUTS 保持一致
                     "step": 1,
                     "tooltip": "设置文本输入项的数量。调整后点击“Update Inputs”按钮刷新端口。",
                 }),
-            }
+            },
+            "optional": cls.FlexibleOptionalInputType("STRING", {
+                "text_1": ("STRING", {"multiline": True, "default": ""}),
+                "text_2": ("STRING", {"multiline": True, "default": ""}),
+            }),
         }
 
-        # 动态生成 text_1, text_2, ... 等输入
-        # 这里默认生成 2 个，前端按钮会通过 JavaScript 重新触发 INPUT_TYPES
-        dynamic_inputs = {}
-        for i in range(1, 3): 
-            key = f"text_{i}"
-            dynamic_inputs[key] = ("STRING", {
-                "multiline": True,
-                "default": "",
-                "tooltip": f"第 {i} 项提示词内容",
-            })
-
-        # 合并输入
-        base_inputs["required"].update(dynamic_inputs)
-        return base_inputs
-
     def function(self, inputcount, **kwargs):
-        # 收集所有非空的文本输入
-        # 根据键名 text_1, text_2... 排序以确保顺序与界面一致
-        sorted_keys = sorted(
-            [k for k in kwargs if k.startswith("text_")], 
-            key=lambda x: int(x.split("_")[1])
-        )
-
+        # 只读取 inputcount 范围内的输入，空白项忽略。
         result = []
-        for key in sorted_keys:
-            value = kwargs.get(key, "").strip()
-            if value: # 忽略空白项
-                result.append(value)
-                
-        # 如果希望强制返回 inputcount 数量的项（即使有些为空），可以改用下面的逻辑：
-        # result = [kwargs.get(f"text_{i}", "").strip() for i in range(1, inputcount + 1)]
-        
+        for index in range(1, inputcount + 1):
+            text = (kwargs.get(f"text_{index}") or "").strip()
+            if text:
+                result.append(text)
         return (result,)
 
 
