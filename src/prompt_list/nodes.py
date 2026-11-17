@@ -8,7 +8,6 @@ from .list import PromptList_CreateFromUpstream
 from .list import PromptList_Show
 from .list import PromptList_GetItem
 from .list import PromptList_SetItem
-from .list import PromptList_BatchSet
 from .list import PromptList_JoinToString
 
 # 一个字典，包含要导出的所有节点及其名称
@@ -24,7 +23,6 @@ NODE_CLASS_MAPPINGS = {
     "PromptList Show": PromptList_Show,
     "PromptList GetItem": PromptList_GetItem,
     "PromptList SetItem": PromptList_SetItem,
-    "PromptList BatchSet": PromptList_BatchSet,
     "PromptList JoinToString": PromptList_JoinToString,
 }
 
@@ -37,5 +35,4 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PromptList CreateFromStrings": "PromptList Create From Strings",
     "PromptList CreateFromStringsMulti": "PromptList Create From Strings (Multi)",
     "PromptList CreateFromUpstream": "PromptList Create From Upstream (Auto)",
-    "PromptList BatchSet": "PromptList Batch Set",
 }

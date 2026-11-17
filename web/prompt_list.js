@@ -41,16 +41,15 @@ app.registerExtension({
 });
 
 
-// ------------ 按 inputcount 增删文本输入框（CreateFromStrings 两个版本 + BatchSet） ------------
+// ------------ 按 inputcount 增删文本输入框（CreateFromStrings 单行 / 多行） ------------
 
 // [warning] PromptList_CreateFromStrings 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
 
 // 单行 / 多行两个版本共用同一套逻辑，只有文本框的 multiline 不同；
-// 批量修改也复用这套输入框机制（每项一个多行输入框，默认内容 {{item}} = 保留原值）
+// 输入框默认内容 {{item}} = 保留原值（不接上游列表时它就是空字符串）
 const CREATE_NODES = {
-    "PromptList CreateFromStrings": { multiline: false, default: "" },
-    "PromptList CreateFromStringsMulti": { multiline: true, default: "" },
-    "PromptList BatchSet": { multiline: true, default: "{{item}}" },
+    "PromptList CreateFromStrings": { multiline: false, default: "{{item}}" },
+    "PromptList CreateFromStringsMulti": { multiline: true, default: "{{item}}" },
 };
 const COUNT_WIDGET = "inputcount";
 const TEXT_PREFIX = "text_";

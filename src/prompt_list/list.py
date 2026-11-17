@@ -13,37 +13,6 @@ from comfy_api.latest import io
 import json
 
 
-class PromptList_CreateFromString:
-    """将多行文本按行分割为提示词列表：一行一项，空行就是空字符串。"""
-
-    CATEGORY = "Prompt List"
-    RETURN_TYPES = ("STRING_PYLIST",)
-    RETURN_NAMES = ("prompt_list",)
-    #INPUT_IS_LIST = False
-    #OUTPUT_IS_LIST = (False,)
-    DESCRIPTION = cleandoc(__doc__ or "")
-    FUNCTION = "function"
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "text": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                }),
-            }
-        }
-
-    def function(self, text):
-        if not isinstance(text, str):
-            raise TypeError(f"text 必须为字符串，收到: {type(text).__name__}")
-
-        # 空行也保留为空字符串，保证行号和列表下标一一对应
-        result = [line.strip() for line in text.splitlines()]
-        return (result,)
-
-
 class PromptList_CreateFromUpstream(io.ComfyNode):
     """从上游连线收集文本创建整张提示词列表：每个连上的输入对应一项。
 
@@ -59,6 +28,8 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
             display_name="PromptList Create From Upstream (Auto)",
             category="Prompt List",
             description=cleandoc(__doc__ or ""),
+            search_aliases=["autogrow", "grow inputs", "collect strings", "from upstream",
+                            "连线", "上游", "自动增加", "端口", "收集"],
             inputs=[
                 io.Autogrow.Input(
                     "texts",
@@ -81,7 +52,7 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
 
 # [warning] PromptList_CreateFromStrings 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
 class PromptList_CreateFromStrings:
-    """从多个单行文本输入创建整张提示词列表：每个输入框对应一项，空框就是空字符串。"""
+    """从多个单行文本输入创建或整体修改整张提示词列表：每个输入框对应一项（下标从 0 开始）。"""
 
     class FlexibleOptionalInputType(dict):
         """让 INPUT_TYPES 接受任意名字的输入。
@@ -103,12 +74,21 @@ class PromptList_CreateFromStrings:
                 return super().__getitem__(key)
             return (self.type,)
 
+    ITEM = "{{item}}"
     MULTILINE = False
-    TEXT_DEFAULT = ""
+    # 几个 create 节点共用的模板说明，避免每个节点的描述里重复写一遍
+    TEMPLATE_HELP = f"""\
+    接了 prompt_list 时，每个框/每行就是对应项的模板：`{ITEM}` 代表该项原来的内容，也是默认值（等于不改）。
+    写成 `{ITEM}, 新内容` 是追加到末尾、`新内容, {ITEM}` 是插到开头；不含 `{ITEM}` 时直接覆盖该项，留空则清空该项。
+    比列表多出来的非空框/行会追加成新项；列表比框/行多时，多出来的项原样保留。
+    不接 prompt_list 时就是纯创建：每个框/每行一项，空值就是空字符串。"""
+    # 给“添加节点”搜索用：这些节点既能创建也能整体修改列表
+    SEARCH_ALIASES = ["create prompt list", "set items", "modify list", "batch edit", "replace items",
+                      "创建", "批量", "修改", "替换", "提示词列表"]
     CATEGORY = "Prompt List"
     RETURN_TYPES = ("STRING_PYLIST",)
     RETURN_NAMES = ("prompt_list",)
-    DESCRIPTION = cleandoc(__doc__ or "")
+    DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{TEMPLATE_HELP}")
     FUNCTION = "function"
 
     @classmethod
@@ -117,7 +97,7 @@ class PromptList_CreateFromStrings:
         # 这里只声明 text_0 / text_1，让节点默认可用；其余 text_N 由前端按 inputcount
         # 动态添加，Python 端靠 FlexibleOptionalInputType 接收这些未声明的输入。
         # 输入框下标从 0 开始，和 GetItem / SetItem 的 index 直接对应。
-        text_options = {"multiline": cls.MULTILINE, "default": cls.TEXT_DEFAULT}
+        text_options = {"multiline": cls.MULTILINE, "default": cls.ITEM}
         return {
             "required": {
                 "inputcount": ("INT", {
@@ -128,23 +108,76 @@ class PromptList_CreateFromStrings:
                     "tooltip": "设置文本输入项的数量。调整后点击“Update Inputs”按钮刷新端口。",
                 }),
             },
+            # prompt_list 可选：不接就是纯创建，接了就是批量修改
             "optional": cls.FlexibleOptionalInputType("STRING", {
+                "prompt_list": ("STRING_PYLIST", {"forceInput": True}),
                 "text_0": ("STRING", dict(text_options)),
                 "text_1": ("STRING", dict(text_options)),
             }),
         }
 
-    def function(self, inputcount, **kwargs):
-        # 每个输入框对应一项（下标从 0 开始），空框就是空字符串（不跳过，保证下标一一对应）
-        result = [(kwargs.get(f"text_{index}") or "").strip() for index in range(inputcount)]
-        return (result,)
+    def function(self, inputcount, prompt_list=None, **kwargs):
+        # 每个输入框对应一项（下标从 0 开始）
+        templates = [(kwargs.get(f"text_{index}") or "").strip() for index in range(inputcount)]
+        return (self._merge(templates, prompt_list),)
+
+    def _merge(self, templates, prompt_list):
+        """把一组模板字符串套到 prompt_list 上；prompt_list 为空时每个模板直接生成一项。"""
+        if prompt_list is not None and not isinstance(prompt_list, (list, tuple)):
+            raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
+
+        # 没有上游列表：每个模板就是一项（空模板就是空字符串）
+        if not prompt_list:
+            return [text.replace(self.ITEM, "") for text in templates]
+
+        # 第 index 个模板改第 index 项。列表更长时，后面的项不参与处理、原样保留
+        result = list(prompt_list)
+        for index, text in enumerate(templates):
+            if index < len(result):
+                result[index] = text.replace(self.ITEM, result[index])
+            else:
+                # 列表更短：多出来的模板作为新项追加（空的就不追加，避免凭空多出空项）
+                value = text.replace(self.ITEM, "")
+                if value.strip():
+                    result.append(value)
+        return result
 
 
 class PromptList_CreateFromStringsMulti(PromptList_CreateFromStrings):
-    """从多个多行文本输入创建整张提示词列表：每个输入框对应一项，空框就是空字符串。"""
+    """从多个多行文本输入创建或整体修改整张提示词列表：每个输入框对应一项（可以写多行）。"""
 
     MULTILINE = True
-    DESCRIPTION = cleandoc(__doc__ or "")
+    SEARCH_ALIASES = [*PromptList_CreateFromStrings.SEARCH_ALIASES, "multiline", "multi line", "多行"]
+    DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{PromptList_CreateFromStrings.TEMPLATE_HELP}")
+
+
+class PromptList_CreateFromString(PromptList_CreateFromStrings):
+    """将多行文本按行分割为提示词列表：一行一项，也可以接上游列表做整体修改。"""
+
+    SEARCH_ALIASES = ["split lines", "text to list", "lines to list", "from string",
+                      "按行", "分行", "拆行", "多行文本转列表", "修改", "替换"]
+    DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{PromptList_CreateFromStrings.TEMPLATE_HELP}")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "text": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                }),
+            },
+            "optional": {
+                "prompt_list": ("STRING_PYLIST", {"forceInput": True}),
+            },
+        }
+
+    def function(self, text, prompt_list=None):
+        if not isinstance(text, str):
+            raise TypeError(f"text 必须为字符串，收到: {type(text).__name__}")
+
+        # 空行也保留为空字符串，保证行号和列表下标一一对应
+        return (self._merge([line.strip() for line in text.splitlines()], prompt_list),)
 
 
 class PromptList_Show:
@@ -261,60 +294,6 @@ class PromptList_SetItem:
 
         result = list(prompt_list)
         result[index] = new_value
-        return (result,)
-
-
-class PromptList_BatchSet(PromptList_CreateFromStrings):
-    """用一组新的文本创建或逐项修改整张提示词列表：一项一个输入框，输入框里可以写多行。
-
-    输入框就是该项的模板：`{{item}}` 代表原来的内容（也是默认值，等于不改），
-    写成 `{{item}}, 新内容` 就是追加、`新内容, {{item}}` 就是头插；
-    不含 `{{item}}` 时直接覆盖该项，留空则清空该项。
-    输入框比列表多时，多出来的非空内容会作为新项追加；列表比输入框多时，
-    多出来的项原样保留（等价于那些项都写了 `{{item}}`）。
-
-    不接 prompt_list（或上游给的是空列表）时当 Create From Strings 用：
-    每个输入框直接生成一项，空框就是空字符串。
-    """
-
-    ITEM = "{{item}}"
-    TEXT_DEFAULT = ITEM
-    MULTILINE = True
-    DESCRIPTION = cleandoc(__doc__ or "")
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        inputs = super().INPUT_TYPES()
-        # prompt_list 可选：不接就是纯创建，接了就是批量修改
-        inputs["optional"] = cls.FlexibleOptionalInputType("STRING", {
-            "prompt_list": ("STRING_PYLIST", {"forceInput": True}),
-            **inputs["optional"],
-        })
-        return inputs
-
-    def function(self, inputcount, prompt_list=None, **kwargs):
-        if prompt_list is not None and not isinstance(prompt_list, (list, tuple)):
-            raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
-
-        # 没有上游列表：当 Create From Strings 用，每个框一项（空框就是空字符串）
-        if not prompt_list:
-            return ([
-                (kwargs.get(f"text_{index}") or "").strip().replace(self.ITEM, "")
-                for index in range(inputcount)
-            ],)
-
-        # 第 index 个输入框改第 index 项（下标从 0 开始）。
-        # 只处理前 inputcount 项；列表更长时，后面的项不参与处理，原样保留（等于那些项写的就是 {{item}}）
-        result = list(prompt_list)
-        for index in range(inputcount):
-            text = (kwargs.get(f"text_{index}") or "").strip()
-            if index < len(result):
-                result[index] = text.replace(self.ITEM, result[index])
-            else:
-                # 列表更短：多出来的框作为新项追加（空框不追加，避免凭空多出空项）
-                value = text.replace(self.ITEM, "")
-                if value.strip():
-                    result.append(value)
         return (result,)
 
 
