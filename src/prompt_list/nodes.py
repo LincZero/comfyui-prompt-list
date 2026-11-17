@@ -14,8 +14,8 @@ NODE_CLASS_MAPPINGS = {
     "Example": Example,
     "Example ImageSelector": ImageSelector,
 
-    "PromptList Creat": PromptList_Create,
-    "PromptList CreatFromString": PromptList_CreateFromString,
+    "PromptList Create": PromptList_Create,
+    "PromptList CreateFromString": PromptList_CreateFromString,
     "PromptList Show": PromptList_Show,
     "PromptList GetItem": PromptList_GetItem,
     "PromptList SetItem": PromptList_SetItem,
