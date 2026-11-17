@@ -59,10 +59,11 @@ const MAX_TEXT_INPUTS = 100;  // 与 Python 端 inputcount 的 max 保持一致
 
 const textInputName = (index) => `${TEXT_PREFIX}${index}`;
 
+// 输入框下标从 0 开始（text_0、text_1…），和 GetItem / SetItem 的 index 对应；不是输入框时返回 -1
 const textInputIndex = (name) => {
-    if (typeof name !== "string" || !name.startsWith(TEXT_PREFIX)) return 0;
-    const index = Number(name.slice(TEXT_PREFIX.length));
-    return Number.isInteger(index) && index > 0 ? index : 0;
+    if (typeof name !== "string" || !name.startsWith(TEXT_PREFIX)) return -1;
+    const suffix = name.slice(TEXT_PREFIX.length);
+    return /^\d+$/.test(suffix) ? Number(suffix) : -1;
 };
 
 const getTextWidget = (node, index) =>
@@ -79,7 +80,7 @@ function ensureTextInput(node, index, config) {
     if (!getTextWidget(node, index)) {
         const options = { multiline: config.multiline, default: config.default };
         const { widget } = ComfyWidgets["STRING"](node, name, ["STRING", options], app);
-        widget.tooltip = `第 ${index} 项提示词内容`;
+        widget.tooltip = `第 ${index + 1} 项提示词内容（index ${index}）`;
         changed = true;
     }
     // 加载工作流时端口已经按保存的内容建好了，这里只补上和文本框的关联
@@ -88,7 +89,7 @@ function ensureTextInput(node, index, config) {
         input.widget = { name };
         return changed;
     }
-    // 和 INPUT_TYPES 里声明的 text_1/text_2 一样，同时有输入端口和文本框
+    // 和 INPUT_TYPES 里声明的 text_0/text_1 一样，同时有输入端口和文本框
     node.addInput(name, "STRING", { widget: { name } });
     return true;
 }
@@ -102,26 +103,26 @@ function removeTextInput(node, index) {
     }
 }
 
-// 让 text_1..text_count 和 inputcount 一一对应；savedValue 用于恢复加载工作流时保存的内容。
+// 让 text_0..text_{count-1} 和 inputcount 一一对应；savedValue 用于恢复加载工作流时保存的内容。
 function syncTextInputs(node, count, config, savedValue) {
     const limit = clampCount(count);
     const highest = Math.max(
-        0,
+        -1,
         ...(node.widgets ?? []).map((widget) => textInputIndex(widget.name)),
         ...(node.inputs ?? []).map((input) => textInputIndex(input.name)),
     );
     let changed = false;
 
-    for (let index = highest; index > limit; index--) {
+    for (let index = highest; index >= limit; index--) {
         removeTextInput(node, index);
         changed = true;
     }
-    for (let index = 1; index <= limit; index++) {
+    for (let index = 0; index < limit; index++) {
         changed = ensureTextInput(node, index, config) || changed;
     }
 
     if (savedValue) {
-        for (let index = 1; index <= limit; index++) {
+        for (let index = 0; index < limit; index++) {
             const widget = getTextWidget(node, index);
             const value = savedValue(index);
             if (widget && typeof value === "string" && widget.value !== value) widget.value = value;
@@ -179,15 +180,15 @@ app.registerExtension({
         nodeType.prototype.onConfigure = function (serialisedNode) {
             const r = onConfigure?.apply(this, arguments);
 
-            // widget 值按顺序保存、跳过不序列化的（按钮），所以先算出 text_1 前面有几个可保存的 widget
-            const before = this.widgets.slice(0, this.widgets.indexOf(getTextWidget(this, 1)));
+            // widget 值按顺序保存、跳过不序列化的（按钮），所以先算出 text_0 前面有几个可保存的 widget
+            const before = this.widgets.slice(0, this.widgets.indexOf(getTextWidget(this, 0)));
             const offset = before.filter((widget) => widget.serialize !== false).length;
 
             const named = serialisedNode?.widgets_values_named;
             const positional = serialisedNode?.widgets_values;
             const savedValue = (index) =>
                 named?.[textInputName(index)] ??
-                (Array.isArray(positional) ? positional[offset + index - 1] : undefined);
+                (Array.isArray(positional) ? positional[offset + index] : undefined);
 
             const count = this.widgets?.find((w) => w.name === COUNT_WIDGET)?.value;
             syncTextInputs(this, count, config, savedValue);
