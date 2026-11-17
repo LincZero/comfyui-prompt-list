@@ -9,6 +9,7 @@
 """
 
 from inspect import cleandoc
+from comfy_api.latest import io
 import json
 
 
@@ -40,6 +41,44 @@ class PromptList_CreateFromString:
 
         result = [line.strip() for line in text.splitlines() if line.strip()]
         return (result,)
+
+
+class PromptList_CreateAuto(io.ComfyNode):
+    """从自动增殖的文本输入创建整张提示词列表：每项一个，空白项忽略。
+
+    输入框的规则和内置的 “Create List” 节点一致：连上最后一个输入就会多出一个，
+    断开后自动收回；这里只是把输出换成 python 列表（STRING_PYLIST）。
+    """
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="PromptList CreateAuto",
+            display_name="PromptList Create (Auto)",
+            category="Prompt List",
+            description=cleandoc(__doc__ or ""),
+            inputs=[
+                io.Autogrow.Input(
+                    "texts",
+                    template=io.Autogrow.TemplatePrefix(
+                        input=io.String.Input("text", multiline=True, default=""),
+                        prefix="text",
+                        min=1,
+                        max=100,
+                    ),
+                ),
+            ],
+            outputs=[io.Custom("STRING_PYLIST").Output(display_name="prompt_list")],
+        )
+
+    @classmethod
+    def execute(cls, texts: io.Autogrow.Type) -> io.NodeOutput:
+        result = []
+        for value in texts.values():
+            text = (value or "").strip()
+            if text:
+                result.append(text)
+        return io.NodeOutput(result)
 
 
 # [warning] PromptList_Create 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂

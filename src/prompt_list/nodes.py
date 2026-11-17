@@ -3,6 +3,7 @@ from .example import ImageSelector
 
 from .list import PromptList_CreateFromString
 from .list import PromptList_Create
+from .list import PromptList_CreateAuto
 from .list import PromptList_Show
 from .list import PromptList_GetItem
 from .list import PromptList_SetItem
@@ -15,6 +16,7 @@ NODE_CLASS_MAPPINGS = {
     "Example ImageSelector": ImageSelector,
 
     "PromptList Create": PromptList_Create,
+    "PromptList CreateAuto": PromptList_CreateAuto,
     "PromptList CreateFromString": PromptList_CreateFromString,
     "PromptList Show": PromptList_Show,
     "PromptList GetItem": PromptList_GetItem,
