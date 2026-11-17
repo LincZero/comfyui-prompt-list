@@ -41,11 +41,15 @@ app.registerExtension({
 });
 
 
-// ------------ PromptList Create：按 inputcount 增删文本输入框 ------------
+// ------------ PromptList CreateFromStrings：按 inputcount 增删文本输入框 ------------
 
-// [warning] PromptList_Create 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
+// [warning] PromptList_CreateFromStrings 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
 
-const CREATE_NODE = "PromptList Create";
+// 单行 / 多行两个版本共用同一套逻辑，只有文本框的 multiline 不同
+const CREATE_NODES = {
+    "PromptList CreateFromStrings": { multiline: false },
+    "PromptList CreateFromStringsMulti": { multiline: true },
+};
 const COUNT_WIDGET = "inputcount";
 const TEXT_PREFIX = "text_";
 const UPDATE_BUTTON = "Update Inputs";
@@ -67,11 +71,11 @@ const clampCount = (value) => {
     return Math.min(MAX_TEXT_INPUTS, Math.max(1, count));
 };
 
-function ensureTextInput(node, index) {
+function ensureTextInput(node, index, multiline) {
     const name = textInputName(index);
     let changed = false;
     if (!getTextWidget(node, index)) {
-        const { widget } = ComfyWidgets["STRING"](node, name, ["STRING", { multiline: true, default: "" }], app);
+        const { widget } = ComfyWidgets["STRING"](node, name, ["STRING", { multiline, default: "" }], app);
         widget.tooltip = `第 ${index} 项提示词内容`;
         changed = true;
     }
@@ -96,7 +100,7 @@ function removeTextInput(node, index) {
 }
 
 // 让 text_1..text_count 和 inputcount 一一对应；savedValue 用于恢复加载工作流时保存的内容。
-function syncTextInputs(node, count, savedValue) {
+function syncTextInputs(node, count, multiline, savedValue) {
     const limit = clampCount(count);
     const highest = Math.max(
         0,
@@ -110,7 +114,7 @@ function syncTextInputs(node, count, savedValue) {
         changed = true;
     }
     for (let index = 1; index <= limit; index++) {
-        changed = ensureTextInput(node, index) || changed;
+        changed = ensureTextInput(node, index, multiline) || changed;
     }
 
     if (savedValue) {
@@ -135,8 +139,8 @@ function syncTextInputs(node, count, savedValue) {
 app.registerExtension({
     name: "PromptList.CreateDynamicInputs",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        // 只对 PromptList Create 节点生效
-        if (nodeData.name !== CREATE_NODE) return;
+        const config = CREATE_NODES[nodeData.name];
+        if (!config) return;
 
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -147,7 +151,7 @@ app.registerExtension({
             if (!countWidget) return r;
 
             const updateButton = node.addWidget("button", UPDATE_BUTTON, null, () => {
-                syncTextInputs(node, countWidget.value);
+                syncTextInputs(node, countWidget.value, config.multiline);
             });
             updateButton.serialize = false;          // 不写进工作流
             updateButton.options.serialize = false;  // 不写进 API 格式
@@ -161,7 +165,7 @@ app.registerExtension({
             const countChanged = countWidget.callback;
             countWidget.callback = function (value, canvas) {
                 const result = countChanged?.apply(this, arguments);
-                if (!canvas) syncTextInputs(node, value);
+                if (!canvas) syncTextInputs(node, value, config.multiline);
                 return result;
             };
 
@@ -179,7 +183,7 @@ app.registerExtension({
                 named?.[textInputName(index)] ?? (Array.isArray(positional) ? positional[index] : undefined);
 
             const count = this.widgets?.find((w) => w.name === COUNT_WIDGET)?.value;
-            syncTextInputs(this, count, savedValue);
+            syncTextInputs(this, count, config.multiline, savedValue);
 
             return r;
         };

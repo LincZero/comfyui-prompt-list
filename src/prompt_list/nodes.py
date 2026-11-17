@@ -2,8 +2,9 @@ from .example import Example
 from .example import ImageSelector
 
 from .list import PromptList_CreateFromString
-from .list import PromptList_Create
-from .list import PromptList_CreateAuto
+from .list import PromptList_CreateFromStrings
+from .list import PromptList_CreateFromStringsMulti
+from .list import PromptList_CreateFromUpstream
 from .list import PromptList_Show
 from .list import PromptList_GetItem
 from .list import PromptList_SetItem
@@ -15,9 +16,10 @@ NODE_CLASS_MAPPINGS = {
     "Example": Example,
     "Example ImageSelector": ImageSelector,
 
-    "PromptList Create": PromptList_Create,
-    "PromptList CreateAuto": PromptList_CreateAuto,
     "PromptList CreateFromString": PromptList_CreateFromString,
+    "PromptList CreateFromStrings": PromptList_CreateFromStrings,
+    "PromptList CreateFromStringsMulti": PromptList_CreateFromStringsMulti,
+    "PromptList CreateFromUpstream": PromptList_CreateFromUpstream,
     "PromptList Show": PromptList_Show,
     "PromptList GetItem": PromptList_GetItem,
     "PromptList SetItem": PromptList_SetItem,
@@ -28,4 +30,9 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Example": "Example Node",
     "Example ImageSelector": "Example Image Selector",
+
+    "PromptList CreateFromString": "PromptList Create From String",
+    "PromptList CreateFromStrings": "PromptList Create From Strings",
+    "PromptList CreateFromStringsMulti": "PromptList Create From Strings (Multi)",
+    "PromptList CreateFromUpstream": "PromptList Create From Upstream (Auto)",
 }

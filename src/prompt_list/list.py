@@ -43,8 +43,8 @@ class PromptList_CreateFromString:
         return (result,)
 
 
-class PromptList_CreateAuto(io.ComfyNode):
-    """从自动增殖的文本输入创建整张提示词列表：每项一个，空白项忽略。
+class PromptList_CreateFromUpstream(io.ComfyNode):
+    """从上游连线收集文本创建整张提示词列表：每项一个，空白项忽略。
 
     输入框的规则和内置的 “Create List” 节点一致：连上最后一个输入就会多出一个，
     断开后自动收回；这里只是把输出换成 python 列表（STRING_PYLIST）。
@@ -53,8 +53,8 @@ class PromptList_CreateAuto(io.ComfyNode):
     @classmethod
     def define_schema(cls):
         return io.Schema(
-            node_id="PromptList CreateAuto",
-            display_name="PromptList Create (Auto)",
+            node_id="PromptList CreateFromUpstream",
+            display_name="PromptList Create From Upstream (Auto)",
             category="Prompt List",
             description=cleandoc(__doc__ or ""),
             inputs=[
@@ -81,9 +81,9 @@ class PromptList_CreateAuto(io.ComfyNode):
         return io.NodeOutput(result)
 
 
-# [warning] PromptList_Create 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
-class PromptList_Create:
-    """从动态数量的文本输入创建整张提示词列表：每项一个，空白项忽略。"""
+# [warning] PromptList_CreateFromStrings 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
+class PromptList_CreateFromStrings:
+    """从多个单行文本输入创建整张提示词列表：每项一个，空白项忽略。"""
 
     class FlexibleOptionalInputType(dict):
         """让 INPUT_TYPES 接受任意名字的输入。
@@ -105,6 +105,7 @@ class PromptList_Create:
                 return super().__getitem__(key)
             return (self.type,)
 
+    MULTILINE = False
     CATEGORY = "Prompt List"
     RETURN_TYPES = ("STRING_PYLIST",)
     RETURN_NAMES = ("prompt_list",)
@@ -116,6 +117,7 @@ class PromptList_Create:
         # inputcount 决定界面上的文本输入框数量，前端的 “Update Inputs” 按钮负责增删。
         # 这里只声明 text_1 / text_2，让节点默认可用；其余 text_N 由前端按 inputcount
         # 动态添加，Python 端靠 FlexibleOptionalInputType 接收这些未声明的输入。
+        text_options = {"multiline": cls.MULTILINE, "default": ""}
         return {
             "required": {
                 "inputcount": ("INT", {
@@ -127,8 +129,8 @@ class PromptList_Create:
                 }),
             },
             "optional": cls.FlexibleOptionalInputType("STRING", {
-                "text_1": ("STRING", {"multiline": True, "default": ""}),
-                "text_2": ("STRING", {"multiline": True, "default": ""}),
+                "text_1": ("STRING", dict(text_options)),
+                "text_2": ("STRING", dict(text_options)),
             }),
         }
 
@@ -140,6 +142,13 @@ class PromptList_Create:
             if text:
                 result.append(text)
         return (result,)
+
+
+class PromptList_CreateFromStringsMulti(PromptList_CreateFromStrings):
+    """从多个多行文本输入创建整张提示词列表：每项一个，空白项忽略。"""
+
+    MULTILINE = True
+    DESCRIPTION = cleandoc(__doc__ or "")
 
 
 class PromptList_Show:
