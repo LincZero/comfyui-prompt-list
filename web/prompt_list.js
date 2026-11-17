@@ -6,7 +6,7 @@ app.registerExtension({
     async beforeRegisterNodeDef(nodeType, nodeData, app) { // 节点注册事件
         // 只对 PromptList_Show 节点生效
         if (nodeData.name !== "PromptList Show") return;
-        // console.log('debug init prompt_list_show 事件', nodeData.name)
+        console.log('debug init prompt_list Show 事件888', nodeData.name)
 
         // 在节点创建时，添加一个只读的多行文本框作为显示区域
         const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -37,5 +37,29 @@ app.registerExtension({
                 }
             }
         };
+    },
+});
+
+app.registerExtension({
+    name: "PromptList.CreateDynamicInputs",
+    async nodeCreated(node) {
+        // 只对 PromptList_Create 节点生效
+        if (node.comfyClass !== "PromptList Create") return;
+        console.log('debug init prompt_list create 事件', nodeData.name)
+
+        // 找到 inputcount 这个 widget
+        const inputCountWidget = node.widgets.find(w => w.name === "inputcount");
+        if (!inputCountWidget) return;
+
+        // 添加“Update Inputs”按钮
+        const updateButton = node.addWidget("button", "Update Inputs", null, () => {
+            // 点击按钮时，重新计算节点的大小并重新绘制
+            // ComfyUI 会在下次执行时，根据新的 inputcount 重新调用 INPUT_TYPES
+            node.setSize([node.size[0], node.computeSize()[1]]);
+            app.graph.setDirtyCanvas(true);
+        });
+
+        // 将按钮放在 inputcount 下面
+        updateButton.serialize = false; // 按钮状态不需要保存
     },
 });
