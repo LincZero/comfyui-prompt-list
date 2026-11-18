@@ -5,14 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prompt-list"
 version = "0.0.1"
-description = "A collection of custom nodes for ComfyUI"
+description = "ComfyUI custom node pack for prompt lists: build a list once, edit its slots in place, read items by index, and flatten it back into one prompt line."
 authors = [
-  {name = "Prompt List", email = "762699299@qq.com"}
+  {name = "LincZero", email = "762699299@qq.com"}
 ]
 readme = "README.md"
-license = {text = "GNU General Public License v3"}
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
-classifiers = []
+classifiers = [
+    "Operating System :: OS Independent",
+]
 dependencies = [
 
 ]
@@ -30,19 +32,14 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/LincZero/prompt-list"
-BugTracker = "https://github.com/LincZero/prompt-list/issues"
-Documentation = "https://github.com/LincZero/prompt-list/wiki"
+Repository = "https://github.com/LincZero/comfyui-prompt-list"
+"Bug Tracker" = "https://github.com/LincZero/comfyui-prompt-list/issues"
+Documentation = "https://github.com/LincZero/comfyui-prompt-list#readme"
 
 
 [tool.comfy]
 PublisherId = "LincZero"
-DisplayName = "Promp tList"
-Icon = ""
-Tags = []
-Repository = "https://github.com/LincZero/prompt-list"
-
-includes = []
+DisplayName = "Prompt List"
 
 [tool.setuptools.package-data]
 "*" = ["*.*"]

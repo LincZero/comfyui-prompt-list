@@ -41,12 +41,12 @@ ComfyUI already has list execution, where an input list makes downstream nodes r
 ## Installation
 
 1. Install [ComfyUI](https://docs.comfy.org/get_started).
-2. Recommended: install [ComfyUI-Manager](https://github.com/ltdrdata/ComfyUI-Manager) and search for this extension there.
+2. Recommended: install [ComfyUI-Manager](https://github.com/Comfy-Org/ComfyUI-Manager) and search for this extension there.
 3. Manual alternative — clone the repository into `ComfyUI/custom_nodes`:
 
    ```bash
    cd ComfyUI/custom_nodes
-   git clone https://github.com/LincZero/prompt-list.git
+   git clone https://github.com/LincZero/comfyui-prompt-list.git
    ```
 
 4. Restart ComfyUI.

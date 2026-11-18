@@ -41,12 +41,12 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 ## 安装
 
 1. 安装 [ComfyUI](https://docs.comfy.org/get_started)。
-2. 推荐：安装 [ComfyUI-Manager](https://github.com/ltdrdata/ComfyUI-Manager)，然后在其中搜索本扩展。
+2. 推荐：安装 [ComfyUI-Manager](https://github.com/Comfy-Org/ComfyUI-Manager)，然后在其中搜索本扩展。
 3. 或手动把仓库克隆到 `ComfyUI/custom_nodes`：
 
    ```bash
    cd ComfyUI/custom_nodes
-   git clone https://github.com/LincZero/prompt-list.git
+   git clone https://github.com/LincZero/comfyui-prompt-list.git
    ```
 
 4. 重启 ComfyUI。
