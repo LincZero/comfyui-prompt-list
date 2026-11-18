@@ -38,7 +38,8 @@ Documentation = "https://github.com/LincZero/comfyui-prompt-list#readme"
 
 
 [tool.comfy]
-PublisherId = "LincZero"
+# Must match the registry publisher id exactly, including case.
+PublisherId = "linczero"
 DisplayName = "Prompt List"
 
 [tool.setuptools.package-data]
