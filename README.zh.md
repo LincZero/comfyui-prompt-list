@@ -62,7 +62,7 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 | 看整张列表 | `PromptList Show`（JSON 预览） |
 | 一次改很多项 | 接 `prompt_list` 的创建节点（模板语法） |
 | 改某一项 | `PromptList SetItem` |
-| 重新拼成一条字符串 | `PromptList JoinToString` |
+| 重新拼成一条字符串 | `PromptList JoinToString`，或者直接用创建节点自带的 `joined_text` 输出 |
 
 ## 节点
 
@@ -85,6 +85,7 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 | 名称 | 类型 | 说明 |
 | --- | --- | --- |
 | `prompt_list` | `STRING_PYLIST` | 每个连上的端口对应一项 |
+| `joined_text` | `STRING` | 上面这张列表用固定的 `,`（不带空格）拼成的整串，可直接接文本编码器 |
 
 ### Create From Strings — `PromptList CreateFromStrings`
 
@@ -107,10 +108,13 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 | 名称 | 类型 | 说明 |
 | --- | --- | --- |
 | `prompt_list` | `STRING_PYLIST` | 新建或修改后的列表 |
+| `joined_text` | `STRING` | 上面这张列表用固定的 `,`（不带空格）拼成的整串，可直接接文本编码器 |
+
+两个输出来自同一张列表，所以 `joined_text` 就是 `",".join(prompt_list)` —— 空槽位会表现为连续两个逗号。
 
 ### Create From Strings (Multi) — `PromptList CreateFromStringsMulti`
 
-同一个节点，但文本框是多行的。适合某一项本身就是一整段话的情况。
+同一个节点、同样两个输出，但文本框是多行的。适合某一项本身就是一整段话的情况。
 
 ### Create From String — `PromptList CreateFromString`
 
@@ -133,6 +137,7 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 | 名称 | 类型 | 说明 |
 | --- | --- | --- |
 | `prompt_list` | `STRING_PYLIST` | 新建或修改后的列表 |
+| `joined_text` | `STRING` | 上面这张列表用固定的 `,`（不带空格）拼成的整串，可直接接文本编码器 |
 
 ### Show — `PromptList Show`
 
@@ -190,6 +195,8 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 ### Join To String — `PromptList JoinToString`
 
 按列表顺序把整张列表拼成一个字符串，用分隔符（默认 `", "`）隔开。各项按原样拼接 —— 包括空项，空项会留下连续的分隔符。
+
+每个创建节点已经自带一个 `joined_text` 输出（分隔符固定为 `,`），所以只有想换分隔符、或者列表在后面又被改过时，才需要这个节点。
 
 **输入**
 
@@ -331,6 +338,8 @@ for index, template in enumerate(boxes):
 
 可以直接喂给文本编码器。注意中间那个 `, ,`：动作槽是空的，而 `Join To String` 是按原样拼接，不会跳过空项。
 
+拼接放在最后是有意的 —— `Set Item` 输出的也是列表，而创建节点自带的 `joined_text` 只反映它自己那一次的输出，不含后续修改。
+
 ### 这样拆分的好处
 
 - **一个阶段一个想法。**"基础角色""换套衣服""换个镜头"是三个独立节点，哪个都能单独静音、绕过、复制，不用重抄任何文字。
@@ -364,6 +373,6 @@ for index, template in enumerate(boxes):
 - 每个节点最多 100 个文本框/输入，索引最大 9999。这两个上限属于界面控件；`Show`、`Get Item`、`Set Item`、`Join To String` 本身能处理任意长度的列表。
 - 列表里只有字符串。
 - 目前没有"删除某一项"的节点 —— 要么重建列表，要么把不需要的槽位清空、接受那个重复的分隔符。
-- 空项会作为空槽位参与拼接，所以 `["a", "", "b"]` 会拼成 `a, , b`。
+- 空项会作为空槽位参与拼接，所以 `["a", "", "b"]` 经 `Join To String` 会拼成 `a, , b`，经创建节点的 `joined_text` 则是 `a,,b`。
 - 列表是一个值，因此不会触发"逐项执行"。要让一张图跑 N 次，得用计数器喂索引，或者用 ComfyUI 自带的列表节点。
 - 目前节点的内嵌描述和 tooltip 只有中文。

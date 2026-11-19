@@ -13,12 +13,17 @@ from comfy_api.latest import io
 import json
 
 
+# 四个创建节点都额外输出一个拼好的字符串，分隔符固定；想换分隔符就再接一个 Join To String
+JOINED_SEPARATOR = ","
+
+
 class PromptList_CreateFromUpstream(io.ComfyNode):
     """从上游连线收集文本创建整张提示词列表：每个连上的输入对应一项。
 
     输入框的规则和内置的 “Create List” 节点一致：连上最后一个输入就会多出一个，
     断开后自动收回；这里只是把输出换成 python 列表（STRING_PYLIST）。
     空字符串也保留为空项，不跳过。
+    另外再输出一个用 `,` 拼好的整串（等同于 Join To String，只是分隔符固定）。
     """
 
     @classmethod
@@ -41,13 +46,17 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
                     ),
                 ),
             ],
-            outputs=[io.Custom("STRING_PYLIST").Output(display_name="prompt_list")],
+            outputs=[
+                io.Custom("STRING_PYLIST").Output(display_name="prompt_list", tooltip="整张提示词列表"),
+                io.String.Output(display_name="joined_text", tooltip="整张列表用固定的 , 拼成的字符串，可直接接文本编码器"),
+            ],
         )
 
     @classmethod
     def execute(cls, texts: io.Autogrow.Type) -> io.NodeOutput:
         # 空字符串也保留为空项
-        return io.NodeOutput([(value or "").strip() for value in texts.values()])
+        prompt_list = [(value or "").strip() for value in texts.values()]
+        return io.NodeOutput(prompt_list, JOINED_SEPARATOR.join(prompt_list))
 
 
 # [warning] PromptList_CreateFromStrings 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
@@ -81,13 +90,15 @@ class PromptList_CreateFromStrings:
     接了 prompt_list 时，每个框/每行就是对应项的模板：`{ITEM}` 代表该项原来的内容，也是默认值（等于不改）。
     写成 `{ITEM}, 新内容` 是追加到末尾、`新内容, {ITEM}` 是插到开头；不含 `{ITEM}` 时直接覆盖该项，留空则清空该项。
     比列表多出来的非空框/行会追加成新项；列表比框/行多时，多出来的项原样保留。
-    不接 prompt_list 时就是纯创建：每个框/每行一项，空值就是空字符串。"""
+    不接 prompt_list 时就是纯创建：每个框/每行一项，空值就是空字符串。
+    输出两个端：`prompt_list` 是列表本身，`joined_text` 是用 `{JOINED_SEPARATOR}` 拼好的整串（不用再接 Join To String）。"""
     # 给“添加节点”搜索用：这些节点既能创建也能整体修改列表
     SEARCH_ALIASES = ["create prompt list", "set items", "modify list", "batch edit", "replace items",
                       "创建", "批量", "修改", "替换", "提示词列表"]
     CATEGORY = "Prompt List"
-    RETURN_TYPES = ("STRING_PYLIST",)
-    RETURN_NAMES = ("prompt_list",)
+    RETURN_TYPES = ("STRING_PYLIST", "STRING")
+    RETURN_NAMES = ("prompt_list", "joined_text")
+    OUTPUT_TOOLTIPS = ("整张提示词列表", "整张列表用固定的 , 拼成的字符串，可直接接文本编码器")
     DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{TEMPLATE_HELP}")
     FUNCTION = "function"
 
@@ -119,7 +130,8 @@ class PromptList_CreateFromStrings:
     def function(self, inputcount, prompt_list=None, **kwargs):
         # 每个输入框对应一项（下标从 0 开始）
         templates = [(kwargs.get(f"text_{index}") or "").strip() for index in range(inputcount)]
-        return (self._merge(templates, prompt_list),)
+        result = self._merge(templates, prompt_list)
+        return (result, JOINED_SEPARATOR.join(result))
 
     def _merge(self, templates, prompt_list):
         """把一组模板字符串套到 prompt_list 上；prompt_list 为空时每个模板直接生成一项。"""
@@ -177,7 +189,8 @@ class PromptList_CreateFromString(PromptList_CreateFromStrings):
             raise TypeError(f"text 必须为字符串，收到: {type(text).__name__}")
 
         # 空行也保留为空字符串，保证行号和列表下标一一对应
-        return (self._merge([line.strip() for line in text.splitlines()], prompt_list),)
+        result = self._merge([line.strip() for line in text.splitlines()], prompt_list)
+        return (result, JOINED_SEPARATOR.join(result))
 
 
 class PromptList_Show:

@@ -62,7 +62,7 @@ All nodes are registered under the **Prompt List** category.
 | Read the whole list | `PromptList Show` (JSON preview) |
 | Edit many items at once | a create node with `prompt_list` connected (template syntax) |
 | Edit a single item | `PromptList SetItem` |
-| Flatten back into one string | `PromptList JoinToString` |
+| Flatten back into one string | `PromptList JoinToString` — or the `joined_text` output the create nodes already have |
 
 ## Nodes
 
@@ -85,6 +85,7 @@ Collects whatever strings are wired into it into one list. Each connected input 
 | Name | Type | Notes |
 | --- | --- | --- |
 | `prompt_list` | `STRING_PYLIST` | One item per connected port |
+| `joined_text` | `STRING` | Those items joined with a fixed `,` (no space), ready for a text encoder |
 
 ### Create From Strings — `PromptList CreateFromStrings`
 
@@ -107,10 +108,13 @@ Every box defaults to `{{item}}`, which means "leave this item alone". Each box 
 | Name | Type | Notes |
 | --- | --- | --- |
 | `prompt_list` | `STRING_PYLIST` | The new or edited list |
+| `joined_text` | `STRING` | That list joined with a fixed `,` (no space), ready for a text encoder |
+
+Both outputs come from the same list, so `joined_text` is exactly `",".join(prompt_list)` — an empty slot therefore shows up as a doubled comma.
 
 ### Create From Strings (Multi) — `PromptList CreateFromStringsMulti`
 
-Same node with multiline boxes, for slots whose content is a paragraph rather than a phrase.
+Same node with multiline boxes and the same two outputs, for slots whose content is a paragraph rather than a phrase.
 
 ### Create From String — `PromptList CreateFromString`
 
@@ -133,6 +137,7 @@ Splits one multiline text box into items, one per line.
 | Name | Type | Notes |
 | --- | --- | --- |
 | `prompt_list` | `STRING_PYLIST` | The new or edited list |
+| `joined_text` | `STRING` | That list joined with a fixed `,` (no space), ready for a text encoder |
 
 ### Show — `PromptList Show`
 
@@ -190,6 +195,8 @@ It is the single-slot tool — "same list, but the camera is different now" — 
 ### Join To String — `PromptList JoinToString`
 
 Flattens the list into one string, in list order, with a separator (default `", "`). Items are joined exactly as stored — including empty ones, which leave a doubled separator behind.
+
+Every create node already returns a `joined_text` output that joins with a fixed `,`, so this node is only needed when you want another separator, or when the list was edited after it was created.
 
 **Inputs**
 
@@ -331,6 +338,8 @@ list → ["这是角色的头",
 
 Which is ready for a text encoder. Note the `, ,` in the middle: the action slot is empty, and `Join To String` joins items exactly as they are without skipping empties.
 
+The join comes last on purpose — `Set Item` outputs a list too, and a create node's own `joined_text` only reflects that node's output, not later edits.
+
 ### What this buys you
 
 - **One stage per idea.** "Base character", "new outfit", "different camera" are separate nodes, so each can be muted, bypassed or duplicated without re-typing anything.
@@ -364,6 +373,6 @@ Everything except the last area runs on core ComfyUI plus this pack.
 - Up to 100 boxes or inputs per node, and an index up to 9999. Those limits belong to the widgets; `Show`, `Get Item`, `Set Item` and `Join To String` handle lists of any length.
 - Only strings live inside the list.
 - There is no "delete item" node yet — shorten a list by rebuilding it, or empty the slot you no longer need and accept the doubled separator.
-- An empty item joins as an empty slot, so a list like `["a", "", "b"]` becomes `a, , b`.
+- An empty item joins as an empty slot, so a list like `["a", "", "b"]` becomes `a, , b` from `Join To String`, or `a,,b` from a create node's `joined_text`.
 - The list is one value, so it does not trigger per-item execution. To run a graph N times, drive an index from a counter or use ComfyUI's own list nodes.
 - Node descriptions and tooltips inside the pack are currently written in Chinese only.
