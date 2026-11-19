@@ -57,7 +57,7 @@ All nodes are registered under the **Prompt List** category.
 
 | Goal | Node |
 | --- | --- |
-| Create a list | one of the four create nodes — see below |
+| Create a list | one of the five create nodes — see below |
 | Read one item | `PromptList GetItem` |
 | Read the whole list | `PromptList Show` (JSON preview) |
 | Edit many items at once | a create node with `prompt_list` connected (template syntax) |
@@ -86,6 +86,30 @@ Collects whatever strings are wired into it into one list. Each connected input 
 | --- | --- | --- |
 | `prompt_list` | `STRING_PYLIST` | One item per connected port |
 | `joined_text` | `STRING` | Those items joined with a fixed `,` (no space), ready for a text encoder |
+
+For the same idea applied to whole lists instead of single strings, see `Create From Lists (Concat)` below.
+
+### Create From Lists (Concat) — `PromptList CreateFromLists`
+
+Chains several lists into one: every `prompt_list` wired in is appended in port order. This is the "parallel → series" node — build a few lists in parallel branches, then merge them here without any node in between.
+
+- Ports grow and shrink like the auto-grow node above (1–100).
+- Items are kept exactly as they arrive — nothing is stripped or reordered.
+- A port carrying an empty list contributes nothing, so it leaves no hole in the result.
+- Outputs are the same two as the other create nodes: the list itself, and its `,`-joined text.
+
+**Inputs**
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `prompt_list` ×N | `STRING_PYLIST` | Auto-growing ports, 1–100. Port order is the concatenation order |
+
+**Output**
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `prompt_list` | `STRING_PYLIST` | Every input chained together |
+| `joined_text` | `STRING` | That list joined with a fixed `,` (no space), ready for a text encoder |
 
 ### Create From Strings — `PromptList CreateFromStrings`
 
@@ -356,7 +380,7 @@ It is laid out in four framed areas, top to bottom:
 | Area | Shows | What you should see |
 | --- | --- | --- |
 | Node basics | `Create From String` with `1`–`5` one per line, then `Show`, `Get Item`, `Set Item`, `Join To String` | `Show` renders `["1","2","3","4","5"]`; `Get Item` index 1 gives `2`; `Set Item` index 1 → `22222` gives `["1","22222","3","4","5"]`; `Join To String` (fed from the create node) gives `1, 2, 3, 4, 5` |
-| Four create nodes | all four ways of creating a list | `Create From Strings` with `666 / 555 / 666` → `["666","555","666"]`; the `(Multi)` node next to it holds two empty multiline boxes (its output is not wired); `Create From Upstream` fed by two `Primitive String` nodes (`aaa`, `bbb`) → `["aaa","bbb"]` |
+| Create nodes | four ways of creating a list | `Create From Strings` with `666 / 555 / 666` → `["666","555","666"]`; the `(Multi)` node next to it holds two empty multiline boxes (its output is not wired); `Create From Upstream` fed by two `Primitive String` nodes (`aaa`, `bbb`) → `["aaa","bbb"]` |
 | Slots / wardrobe | the walkthrough above | the lists shown in the walkthrough |
 | KJNodes comparison | a development note; it uses `Join String Multi` from [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | — (needs KJNodes installed; delete this area if you don't have it) |
 

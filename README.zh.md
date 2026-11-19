@@ -57,7 +57,7 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 
 | 想做的事 | 用哪个节点 |
 | --- | --- |
-| 创建列表 | 下面四种创建节点任选 |
+| 创建列表 | 下面五种创建节点任选 |
 | 取其中一项 | `PromptList GetItem` |
 | 看整张列表 | `PromptList Show`（JSON 预览） |
 | 一次改很多项 | 接 `prompt_list` 的创建节点（模板语法） |
@@ -85,6 +85,30 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 | 名称 | 类型 | 说明 |
 | --- | --- | --- |
 | `prompt_list` | `STRING_PYLIST` | 每个连上的端口对应一项 |
+| `joined_text` | `STRING` | 上面这张列表用固定的 `,`（不带空格）拼成的整串，可直接接文本编码器 |
+
+同样的思路如果作用在"整张列表"而不是"单个字符串"上，见下面的 `Create From Lists (Concat)`。
+
+### Create From Lists (Concat) — `PromptList CreateFromLists`
+
+把多张列表串成一张：连进来的每个 `prompt_list` 按端口顺序接在后面。也就是"并联转串联" —— 在几条并联支路里各做一张列表，最后用这一个节点合并，中间不用再套别的节点。
+
+- 端口数量和上面的自动增长节点一致（1–100 个）。
+- 各项按原样保留，不去首尾空白，也不重排。
+- 某个端口接的是空列表时它不贡献任何项，结果里不会留下空洞。
+- 输出和其他创建节点一样是两个：列表本身，以及用 `,` 拼好的整串。
+
+**输入**
+
+| 名称 | 类型 | 说明 |
+| --- | --- | --- |
+| `prompt_list` ×N | `STRING_PYLIST` | 端口自动增减，1–100 个。端口顺序就是拼接顺序 |
+
+**输出**
+
+| 名称 | 类型 | 说明 |
+| --- | --- | --- |
+| `prompt_list` | `STRING_PYLIST` | 所有输入首尾相连后的列表 |
 | `joined_text` | `STRING` | 上面这张列表用固定的 `,`（不带空格）拼成的整串，可直接接文本编码器 |
 
 ### Create From Strings — `PromptList CreateFromStrings`
@@ -356,7 +380,7 @@ for index, template in enumerate(boxes):
 | 区块 | 演示什么 | 应该看到什么 |
 | --- | --- | --- |
 | 节点基本用法 | `Create From String` 里一行一个填 `1`–`5`，接 `Show`、`Get Item`、`Set Item`、`Join To String` | `Show` 显示 `["1","2","3","4","5"]`；`Get Item` 索引 1 得到 `2`；`Set Item` 索引 1 改成 `22222` 后得到 `["1","22222","3","4","5"]`；`Join To String`（直接接创建节点）得到 `1, 2, 3, 4, 5` |
-| 四种创建节点 | 四种建列表的方法 | `Create From Strings` 填 `666 / 555 / 666` → `["666","555","666"]`；旁边的 `(Multi)` 是两个空的多行框，用来对比输入方式（输出没接线）；`Create From Upstream` 接两个 `Primitive String`（`aaa`、`bbb`）→ `["aaa","bbb"]` |
+| 创建节点 | 四种建列表的方法 | `Create From Strings` 填 `666 / 555 / 666` → `["666","555","666"]`；旁边的 `(Multi)` 是两个空的多行框，用来对比输入方式（输出没接线）；`Create From Upstream` 接两个 `Primitive String`（`aaa`、`bbb`）→ `["aaa","bbb"]` |
 | 槽位 / 衣柜 | 上面那段走查 | 走查里出现过的那几张列表 |
 | KJNodes 对比 | 开发时的对比笔记，用到了 [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) 的 `Join String Multi` | ——（需要装 KJNodes；没有的话把这块删掉即可） |
 

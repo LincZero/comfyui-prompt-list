@@ -8,7 +8,7 @@ __all__ = [
 
 __author__ = """Prompt List"""
 __email__ = "762699299@qq.com"
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 from .src.prompt_list.nodes import NODE_CLASS_MAPPINGS
 from .src.prompt_list.nodes import NODE_DISPLAY_NAME_MAPPINGS

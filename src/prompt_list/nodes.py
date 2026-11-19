@@ -5,6 +5,7 @@ from .list import PromptList_CreateFromString
 from .list import PromptList_CreateFromStrings
 from .list import PromptList_CreateFromStringsMulti
 from .list import PromptList_CreateFromUpstream
+from .list import PromptList_CreateFromLists
 from .list import PromptList_Show
 from .list import PromptList_GetItem
 from .list import PromptList_SetItem
@@ -20,6 +21,7 @@ NODE_CLASS_MAPPINGS = {
     "PromptList CreateFromStrings": PromptList_CreateFromStrings,
     "PromptList CreateFromStringsMulti": PromptList_CreateFromStringsMulti,
     "PromptList CreateFromUpstream": PromptList_CreateFromUpstream,
+    "PromptList CreateFromLists": PromptList_CreateFromLists,
     "PromptList Show": PromptList_Show,
     "PromptList GetItem": PromptList_GetItem,
     "PromptList SetItem": PromptList_SetItem,
@@ -35,4 +37,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PromptList CreateFromStrings": "PromptList Create From Strings",
     "PromptList CreateFromStringsMulti": "PromptList Create From Strings (Multi)",
     "PromptList CreateFromUpstream": "PromptList Create From Upstream (Auto)",
+    "PromptList CreateFromLists": "PromptList Create From Lists (Concat)",
 }

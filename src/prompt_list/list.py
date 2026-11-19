@@ -13,8 +13,11 @@ from comfy_api.latest import io
 import json
 
 
-# 四个创建节点都额外输出一个拼好的字符串，分隔符固定；想换分隔符就再接一个 Join To String
+# 每个创建节点都额外输出一个拼好的字符串，分隔符固定；想换分隔符就再接一个 Join To String
 JOINED_SEPARATOR = ","
+# 创建节点共用的输出说明：V3 的 Output(tooltip=...) 和 legacy 的 OUTPUT_TOOLTIPS 都用这两句
+PROMPT_LIST_TOOLTIP = "整张提示词列表"
+JOINED_TEXT_TOOLTIP = "整张列表用固定的 , 拼成的字符串，可直接接文本编码器"
 
 
 class PromptList_CreateFromUpstream(io.ComfyNode):
@@ -32,7 +35,8 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
             node_id="PromptList CreateFromUpstream",
             display_name="PromptList Create From Upstream (Auto)",
             category="Prompt List",
-            description=cleandoc(__doc__ or ""),
+            # 方法体里的裸 __doc__ 会解析到模块的 docstring，这里必须显式取类的
+            description=cleandoc(cls.__doc__ or ""),
             search_aliases=["autogrow", "grow inputs", "collect strings", "from upstream",
                             "连线", "上游", "自动增加", "端口", "收集"],
             inputs=[
@@ -47,8 +51,8 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
                 ),
             ],
             outputs=[
-                io.Custom("STRING_PYLIST").Output(display_name="prompt_list", tooltip="整张提示词列表"),
-                io.String.Output(display_name="joined_text", tooltip="整张列表用固定的 , 拼成的字符串，可直接接文本编码器"),
+                io.Custom("STRING_PYLIST").Output(display_name="prompt_list", tooltip=PROMPT_LIST_TOOLTIP),
+                io.String.Output(display_name="joined_text", tooltip=JOINED_TEXT_TOOLTIP),
             ],
         )
 
@@ -56,6 +60,46 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
     def execute(cls, texts: io.Autogrow.Type) -> io.NodeOutput:
         # 空字符串也保留为空项
         prompt_list = [(value or "").strip() for value in texts.values()]
+        return io.NodeOutput(prompt_list, JOINED_SEPARATOR.join(prompt_list))
+
+
+class PromptList_CreateFromLists(io.ComfyNode):
+    """把多张提示词列表首尾相连成一张：每个连上的 prompt_list 按端口顺序接在后面。
+
+    端口的规则和内置的 “Create List” 节点一致：连上最后一个输入就会多出一个，断开后自动收回。
+    接进来的项按原样保留，顺序就是端口顺序；某个端口接的是空列表时不会多出空项。
+    另外再输出一个用 `,` 拼好的整串（等同于 Join To String，只是分隔符固定）。
+    """
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="PromptList CreateFromLists",
+            display_name="PromptList Create From Lists (Concat)",
+            category="Prompt List",
+            description=cleandoc(cls.__doc__ or ""),
+            search_aliases=["concat", "concatenate", "merge lists", "combine lists", "quick chain",
+                            "并联", "串联", "串连", "合并", "拼接", "首尾相连"],
+            inputs=[
+                io.Autogrow.Input(
+                    "lists",
+                    template=io.Autogrow.TemplatePrefix(
+                        input=io.Custom("STRING_PYLIST").Input("prompt_list", tooltip="按端口顺序首尾相连"),
+                        prefix="list",
+                        min=1,
+                        max=100,
+                    ),
+                ),
+            ],
+            outputs=[
+                io.Custom("STRING_PYLIST").Output(display_name="prompt_list", tooltip=PROMPT_LIST_TOOLTIP),
+                io.String.Output(display_name="joined_text", tooltip=JOINED_TEXT_TOOLTIP),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, lists: io.Autogrow.Type) -> io.NodeOutput:
+        prompt_list = [item for value in lists.values() for item in (value or [])]
         return io.NodeOutput(prompt_list, JOINED_SEPARATOR.join(prompt_list))
 
 
@@ -98,7 +142,7 @@ class PromptList_CreateFromStrings:
     CATEGORY = "Prompt List"
     RETURN_TYPES = ("STRING_PYLIST", "STRING")
     RETURN_NAMES = ("prompt_list", "joined_text")
-    OUTPUT_TOOLTIPS = ("整张提示词列表", "整张列表用固定的 , 拼成的字符串，可直接接文本编码器")
+    OUTPUT_TOOLTIPS = (PROMPT_LIST_TOOLTIP, JOINED_TEXT_TOOLTIP)
     DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{TEMPLATE_HELP}")
     FUNCTION = "function"
 
