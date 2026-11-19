@@ -13,11 +13,42 @@ from comfy_api.latest import io
 import json
 
 
+# 模板占位符：代表该项原来的内容，也是模板的默认值（等于不改）
+ITEM = "{{item}}"
 # 每个创建节点都额外输出一个拼好的字符串，分隔符固定；想换分隔符就再接一个 Join To String
 JOINED_SEPARATOR = ","
 # 创建节点共用的输出说明：V3 的 Output(tooltip=...) 和 legacy 的 OUTPUT_TOOLTIPS 都用这两句
 PROMPT_LIST_TOOLTIP = "整张提示词列表"
 JOINED_TEXT_TOOLTIP = "整张列表用固定的 , 拼成的字符串，可直接接文本编码器"
+# 五个创建节点共用的模板说明，避免每个节点的描述里重复写一遍
+TEMPLATE_HELP = f"""\
+接了 prompt_list 时，每个输入（文本框 / 每一行 / 连上的端口 / 接进来的项）就是对应项的模板：`{ITEM}` 代表该项原来的内容，也是默认值（等于不改）。
+写成 `{ITEM}, 新内容` 是追加到末尾、`新内容, {ITEM}` 是插到开头；不含 `{ITEM}` 时直接覆盖该项，留空则清空该项。
+比列表多出来的非空输入会追加成新项；列表比输入多时，多出来的项原样保留。
+不接 prompt_list 时就是纯创建：输入按原顺序成为列表内容，`{ITEM}` 会被清掉。
+输出两个端：`prompt_list` 是列表本身，`joined_text` 是用 `{JOINED_SEPARATOR}` 拼好的整串（不用再接 Join To String）。"""
+
+
+def merge_templates(templates, prompt_list):
+    """把一组模板字符串套到 prompt_list 上；prompt_list 为空时每个模板直接生成一项。"""
+    if prompt_list is not None and not isinstance(prompt_list, (list, tuple)):
+        raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
+
+    # 没有上游列表：每个模板就是一项（空模板就是空字符串）
+    if not prompt_list:
+        return [text.replace(ITEM, "") for text in templates]
+
+    # 第 index 个模板改第 index 项。列表更长时，后面的项不参与处理、原样保留
+    result = list(prompt_list)
+    for index, text in enumerate(templates):
+        if index < len(result):
+            result[index] = text.replace(ITEM, result[index])
+        else:
+            # 列表更短：多出来的模板作为新项追加（空的就不追加，避免凭空多出空项）
+            value = text.replace(ITEM, "")
+            if value.strip():
+                result.append(value)
+    return result
 
 
 class PromptList_CreateFromUpstream(io.ComfyNode):
@@ -25,7 +56,7 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
 
     输入框的规则和内置的 “Create List” 节点一致：连上最后一个输入就会多出一个，
     断开后自动收回；这里只是把输出换成 python 列表（STRING_PYLIST）。
-    空字符串也保留为空项，不跳过。
+    空字符串也保留为空项，不跳过；接了 prompt_list 时，每个输入就是对应项的模板。
     另外再输出一个用 `,` 拼好的整串（等同于 Join To String，只是分隔符固定）。
     """
 
@@ -36,10 +67,14 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
             display_name="PromptList Create From Upstream (Auto)",
             category="Prompt List",
             # 方法体里的裸 __doc__ 会解析到模块的 docstring，这里必须显式取类的
-            description=cleandoc(cls.__doc__ or ""),
+            description=cleandoc(f"{cls.__doc__ or ''}\n\n{TEMPLATE_HELP}"),
             search_aliases=["autogrow", "grow inputs", "collect strings", "from upstream",
                             "连线", "上游", "自动增加", "端口", "收集"],
             inputs=[
+                io.Custom("STRING_PYLIST").Input(
+                    "prompt_list", optional=True,
+                    tooltip="接上则把下面这些输入当成模板去改这张列表；不接则新建",
+                ),
                 io.Autogrow.Input(
                     "texts",
                     template=io.Autogrow.TemplatePrefix(
@@ -57,10 +92,11 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, texts: io.Autogrow.Type) -> io.NodeOutput:
+    def execute(cls, texts: io.Autogrow.Type, prompt_list=None) -> io.NodeOutput:
         # 空字符串也保留为空项
-        prompt_list = [(value or "").strip() for value in texts.values()]
-        return io.NodeOutput(prompt_list, JOINED_SEPARATOR.join(prompt_list))
+        templates = [(value or "").strip() for value in texts.values()]
+        result = merge_templates(templates, prompt_list)
+        return io.NodeOutput(result, JOINED_SEPARATOR.join(result))
 
 
 class PromptList_CreateFromLists(io.ComfyNode):
@@ -68,6 +104,7 @@ class PromptList_CreateFromLists(io.ComfyNode):
 
     端口的规则和内置的 “Create List” 节点一致：连上最后一个输入就会多出一个，断开后自动收回。
     接进来的项按原样保留，顺序就是端口顺序；某个端口接的是空列表时不会多出空项。
+    接了上游 prompt_list 时，接进来的项就是对应项的模板。
     另外再输出一个用 `,` 拼好的整串（等同于 Join To String，只是分隔符固定）。
     """
 
@@ -77,10 +114,14 @@ class PromptList_CreateFromLists(io.ComfyNode):
             node_id="PromptList CreateFromLists",
             display_name="PromptList Create From Lists (Concat)",
             category="Prompt List",
-            description=cleandoc(cls.__doc__ or ""),
+            description=cleandoc(f"{cls.__doc__ or ''}\n\n{TEMPLATE_HELP}"),
             search_aliases=["concat", "concatenate", "merge lists", "combine lists", "quick chain",
                             "并联", "串联", "串连", "合并", "拼接", "首尾相连"],
             inputs=[
+                io.Custom("STRING_PYLIST").Input(
+                    "prompt_list", optional=True,
+                    tooltip="接上则把下面接进来的项当成模板去改这张列表；不接则只做拼接",
+                ),
                 io.Autogrow.Input(
                     "lists",
                     template=io.Autogrow.TemplatePrefix(
@@ -98,9 +139,10 @@ class PromptList_CreateFromLists(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, lists: io.Autogrow.Type) -> io.NodeOutput:
-        prompt_list = [item for value in lists.values() for item in (value or [])]
-        return io.NodeOutput(prompt_list, JOINED_SEPARATOR.join(prompt_list))
+    def execute(cls, lists: io.Autogrow.Type, prompt_list=None) -> io.NodeOutput:
+        templates = [item for value in lists.values() for item in (value or [])]
+        result = merge_templates(templates, prompt_list)
+        return io.NodeOutput(result, JOINED_SEPARATOR.join(result))
 
 
 # [warning] PromptList_CreateFromStrings 节点的动态输入比较复杂，部分 vibe coding 的代码我也没弄懂
@@ -127,15 +169,7 @@ class PromptList_CreateFromStrings:
                 return super().__getitem__(key)
             return (self.type,)
 
-    ITEM = "{{item}}"
     MULTILINE = False
-    # 几个 create 节点共用的模板说明，避免每个节点的描述里重复写一遍
-    TEMPLATE_HELP = f"""\
-    接了 prompt_list 时，每个框/每行就是对应项的模板：`{ITEM}` 代表该项原来的内容，也是默认值（等于不改）。
-    写成 `{ITEM}, 新内容` 是追加到末尾、`新内容, {ITEM}` 是插到开头；不含 `{ITEM}` 时直接覆盖该项，留空则清空该项。
-    比列表多出来的非空框/行会追加成新项；列表比框/行多时，多出来的项原样保留。
-    不接 prompt_list 时就是纯创建：每个框/每行一项，空值就是空字符串。
-    输出两个端：`prompt_list` 是列表本身，`joined_text` 是用 `{JOINED_SEPARATOR}` 拼好的整串（不用再接 Join To String）。"""
     # 给“添加节点”搜索用：这些节点既能创建也能整体修改列表
     SEARCH_ALIASES = ["create prompt list", "set items", "modify list", "batch edit", "replace items",
                       "创建", "批量", "修改", "替换", "提示词列表"]
@@ -152,7 +186,7 @@ class PromptList_CreateFromStrings:
         # 这里只声明 text_0 / text_1，让节点默认可用；其余 text_N 由前端按 inputcount
         # 动态添加，Python 端靠 FlexibleOptionalInputType 接收这些未声明的输入。
         # 输入框下标从 0 开始，和 GetItem / SetItem 的 index 直接对应。
-        text_options = {"multiline": cls.MULTILINE, "default": cls.ITEM}
+        text_options = {"multiline": cls.MULTILINE, "default": ITEM}
         return {
             "required": {
                 "inputcount": ("INT", {
@@ -174,29 +208,8 @@ class PromptList_CreateFromStrings:
     def function(self, inputcount, prompt_list=None, **kwargs):
         # 每个输入框对应一项（下标从 0 开始）
         templates = [(kwargs.get(f"text_{index}") or "").strip() for index in range(inputcount)]
-        result = self._merge(templates, prompt_list)
+        result = merge_templates(templates, prompt_list)
         return (result, JOINED_SEPARATOR.join(result))
-
-    def _merge(self, templates, prompt_list):
-        """把一组模板字符串套到 prompt_list 上；prompt_list 为空时每个模板直接生成一项。"""
-        if prompt_list is not None and not isinstance(prompt_list, (list, tuple)):
-            raise TypeError(f"prompt_list 必须为列表，收到: {type(prompt_list).__name__}")
-
-        # 没有上游列表：每个模板就是一项（空模板就是空字符串）
-        if not prompt_list:
-            return [text.replace(self.ITEM, "") for text in templates]
-
-        # 第 index 个模板改第 index 项。列表更长时，后面的项不参与处理、原样保留
-        result = list(prompt_list)
-        for index, text in enumerate(templates):
-            if index < len(result):
-                result[index] = text.replace(self.ITEM, result[index])
-            else:
-                # 列表更短：多出来的模板作为新项追加（空的就不追加，避免凭空多出空项）
-                value = text.replace(self.ITEM, "")
-                if value.strip():
-                    result.append(value)
-        return result
 
 
 class PromptList_CreateFromStringsMulti(PromptList_CreateFromStrings):
@@ -204,7 +217,7 @@ class PromptList_CreateFromStringsMulti(PromptList_CreateFromStrings):
 
     MULTILINE = True
     SEARCH_ALIASES = [*PromptList_CreateFromStrings.SEARCH_ALIASES, "multiline", "multi line", "多行"]
-    DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{PromptList_CreateFromStrings.TEMPLATE_HELP}")
+    DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{TEMPLATE_HELP}")
 
 
 class PromptList_CreateFromString(PromptList_CreateFromStrings):
@@ -212,7 +225,7 @@ class PromptList_CreateFromString(PromptList_CreateFromStrings):
 
     SEARCH_ALIASES = ["split lines", "text to list", "lines to list", "from string",
                       "按行", "分行", "拆行", "多行文本转列表", "修改", "替换"]
-    DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{PromptList_CreateFromStrings.TEMPLATE_HELP}")
+    DESCRIPTION = cleandoc(f"{__doc__ or ''}\n\n{TEMPLATE_HELP}")
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -233,7 +246,7 @@ class PromptList_CreateFromString(PromptList_CreateFromStrings):
             raise TypeError(f"text 必须为字符串，收到: {type(text).__name__}")
 
         # 空行也保留为空字符串，保证行号和列表下标一一对应
-        result = self._merge([line.strip() for line in text.splitlines()], prompt_list)
+        result = merge_templates([line.strip() for line in text.splitlines()], prompt_list)
         return (result, JOINED_SEPARATOR.join(result))
 
 

@@ -73,12 +73,14 @@ Collects whatever strings are wired into it into one list. Each connected input 
 - Ports grow and shrink the usual way: connect the last one and another appears, disconnect it and it goes away (1–100).
 - Values are stripped of surrounding whitespace.
 - A connected but empty input is kept as an empty item, not skipped.
+- Connect the single `prompt_list` input and these same strings become templates for that list instead — see *Editing with templates* below.
 
 **Inputs**
 
 | Name | Type | Notes |
 | --- | --- | --- |
-| `text` ×N | `STRING` | Multiline, auto-growing ports, 1–100 |
+| `prompt_list` | `STRING_PYLIST` | Optional single socket. Connected = the strings below are templates for that list |
+| `text0`, `text1`, … | `STRING` | Multiline, auto-growing ports, 1–100 |
 
 **Output**
 
@@ -94,15 +96,17 @@ For the same idea applied to whole lists instead of single strings, see `Create 
 Chains several lists into one: every `prompt_list` wired in is appended in port order. This is the "parallel → series" node — build a few lists in parallel branches, then merge them here without any node in between.
 
 - Ports grow and shrink like the auto-grow node above (1–100).
-- Items are kept exactly as they arrive — nothing is stripped or reordered.
+- Items are kept as they arrive — no trimming, no reordering; only `{{item}}` counts as the placeholder.
 - A port carrying an empty list contributes nothing, so it leaves no hole in the result.
 - Outputs are the same two as the other create nodes: the list itself, and its `,`-joined text.
+- Connect the single `prompt_list` input and the incoming items become templates for that list instead of a plain concatenation — see *Editing with templates* below.
 
 **Inputs**
 
 | Name | Type | Notes |
 | --- | --- | --- |
-| `prompt_list` ×N | `STRING_PYLIST` | Auto-growing ports, 1–100. Port order is the concatenation order |
+| `prompt_list` | `STRING_PYLIST` | Optional single socket. Connected = the items below are templates for that list |
+| `list0`, `list1`, … | `STRING_PYLIST` | Auto-growing ports, 1–100. Port order is the concatenation order |
 
 **Output**
 
@@ -237,7 +241,7 @@ Every create node already returns a `joined_text` output that joins with a fixed
 
 ## Editing with templates
 
-The three box-based create nodes share one rule set. Without an upstream list, every box (or line) simply becomes an item. With an upstream list, each box is a template for the item at the same index:
+All five create nodes share one rule set. Only where the inputs come from differs — text boxes (`Create From Strings` and its `(Multi)` twin), the lines of one text box (`Create From String`), the connected strings (`Create From Upstream`), or the items of the connected lists flattened in port order (`Create From Lists`) — and merging works exactly the same. Without an upstream list every input simply becomes an item; with an upstream list each input is a template for the item at the same index:
 
 ```text
 result = list(prompt_list)                 # empty when nothing is connected
@@ -253,7 +257,7 @@ for index, template in enumerate(boxes):
 # items the boxes do not reach are left untouched
 ```
 
-So the whole "追加 / 替换 / 清空" vocabulary is just what you type in the box:
+So the whole "追加 / 替换 / 清空" vocabulary is just what you write in the input:
 
 | You want | Type this | Effect |
 | --- | --- | --- |
@@ -262,13 +266,13 @@ So the whole "追加 / 替换 / 清空" vocabulary is just what you type in the 
 | prepend | `masterpiece, {{item}}` | text added before the item |
 | replace | `silver hair` | item overwritten |
 | clear | *(empty box)* | item becomes an empty string |
-| leave the rest alone | write fewer boxes | untouched items keep their value |
+| leave the rest alone | write fewer inputs | untouched items keep their value |
 
-Boxes are stripped before merging, so spaces at the edges of a box are dropped — put the spacing after the placeholder if you need it. A box may contain `{{item}}` more than once; every occurrence is replaced.
+Text inputs — boxes, lines and connected strings — are stripped before merging, so spaces at their edges are dropped; put the spacing after the placeholder if you need it. Items that arrive through `Create From Lists` are used verbatim. An input may contain `{{item}}` more than once; every occurrence is replaced.
 
 Some concrete results:
 
-| Upstream list | Boxes | Result |
+| Upstream list | Inputs | Result |
 | --- | --- | --- |
 | `["one", "two", "three"]` | `{{item}}` in every box | unchanged |
 | `["one", "two"]` | `{{item}}, masterpiece`, `best quality, {{item}}` | `["one, masterpiece", "best quality, two"]` |
