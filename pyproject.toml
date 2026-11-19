@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prompt-list"
-version = "0.0.1"
+version = "0.0.2"
 description = "ComfyUI custom node pack for prompt lists: build a list once, edit its slots in place, read items by index, and flatten it back into one prompt line."
 authors = [
   {name = "LincZero", email = "762699299@qq.com"}
