@@ -89,30 +89,32 @@ Collects whatever strings are wired into it into one list. Each connected input 
 | `prompt_list` | `STRING_PYLIST` | One item per connected port |
 | `joined_text` | `STRING` | Those items joined with a fixed `,` (no space), ready for a text encoder |
 
-For the same idea applied to whole lists instead of single strings, see `Create From Lists (Concat)` below.
+For stacking several lists in one go, see `Create From Lists (Chain)` below.
 
-### Create From Lists (Concat) — `PromptList CreateFromLists`
+### Create From Lists (Chain) — `PromptList CreateFromLists`
 
-Chains several lists into one: every `prompt_list` wired in is appended in port order. This is the "parallel → series" node — build a few lists in parallel branches, then merge them here without any node in between.
+Lays several lists on top of each other as a pipeline: the first list (or the `prompt_list` you wire in) sets the items, and every following list is one layer of templates applied in port order. This is the "parallel → series" node — keep each layer in its own parallel branch, then stack them here with a single node.
 
 - Ports grow and shrink like the auto-grow node above (1–100).
-- Items are kept as they arrive — no trimming, no reordering; only `{{item}}` counts as the placeholder.
-- A port carrying an empty list contributes nothing, so it leaves no hole in the result.
+- One layer = one list: position *n* of the layer edits item *n* of the result, so `{{item}}` keeps that value and plain text overwrites it.
+- A layer shorter than the result leaves the remaining items alone; a longer one appends its extra non-empty items.
+- A port carrying an empty list changes nothing.
 - Outputs are the same two as the other create nodes: the list itself, and its `,`-joined text.
-- Connect the single `prompt_list` input and the incoming items become templates for that list instead of a plain concatenation — see *Editing with templates* below.
+
+With `["111", "222"]` and `["{{item}}", "333"]` wired in, the result is `["111", "333"]`: the first list builds, the second keeps item 0 and replaces item 1.
 
 **Inputs**
 
 | Name | Type | Notes |
 | --- | --- | --- |
-| `prompt_list` | `STRING_PYLIST` | Optional single socket. Connected = the items below are templates for that list |
-| `list0`, `list1`, … | `STRING_PYLIST` | Auto-growing ports, 1–100. Port order is the concatenation order |
+| `prompt_list` | `STRING_PYLIST` | Optional single socket. Connected = start from this list instead of the first input |
+| `list0`, `list1`, … | `STRING_PYLIST` | Auto-growing ports, 1–100. Port order is also the layer order |
 
 **Output**
 
 | Name | Type | Notes |
 | --- | --- | --- |
-| `prompt_list` | `STRING_PYLIST` | Every input chained together |
+| `prompt_list` | `STRING_PYLIST` | The result after all layers |
 | `joined_text` | `STRING` | That list joined with a fixed `,` (no space), ready for a text encoder |
 
 ### Create From Strings — `PromptList CreateFromStrings`
@@ -241,7 +243,7 @@ Every create node already returns a `joined_text` output that joins with a fixed
 
 ## Editing with templates
 
-All five create nodes share one rule set. Only where the inputs come from differs — text boxes (`Create From Strings` and its `(Multi)` twin), the lines of one text box (`Create From String`), the connected strings (`Create From Upstream`), or the items of the connected lists flattened in port order (`Create From Lists`) — and merging works exactly the same. Without an upstream list every input simply becomes an item; with an upstream list each input is a template for the item at the same index:
+All five create nodes share one rule set. Only where the inputs come from differs — text boxes (`Create From Strings` and its `(Multi)` twin), the lines of one text box (`Create From String`), the connected strings (`Create From Upstream`), or each connected list applied as one layer (`Create From Lists`) — and merging works exactly the same. Without an upstream list every input simply becomes an item; with an upstream list each input is a template for the item at the same index:
 
 ```text
 result = list(prompt_list)                 # empty when nothing is connected

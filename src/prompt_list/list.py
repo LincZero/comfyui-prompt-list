@@ -100,11 +100,11 @@ class PromptList_CreateFromUpstream(io.ComfyNode):
 
 
 class PromptList_CreateFromLists(io.ComfyNode):
-    """把多张提示词列表首尾相连成一张：每个连上的 prompt_list 按端口顺序接在后面。
+    """把并联的多张提示词列表串成一条加工链：每张输入列表依次叠到结果上（按端口顺序）。
 
-    端口的规则和内置的 “Create List” 节点一致：连上最后一个输入就会多出一个，断开后自动收回。
-    接进来的项按原样保留，顺序就是端口顺序；某个端口接的是空列表时不会多出空项。
-    接了上游 prompt_list 时，接进来的项就是对应项的模板。
+    第一张（或接上的 prompt_list）负责建表，后面每张是一层模板：`{{item}}` 表示该项保持不变，
+    不含 `{{item}}` 就覆盖该项，比当前列表多出来的非空项追加到末尾。
+    接空列表的那一层不改变结果。
     另外再输出一个用 `,` 拼好的整串（等同于 Join To String，只是分隔符固定）。
     """
 
@@ -112,20 +112,20 @@ class PromptList_CreateFromLists(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="PromptList CreateFromLists",
-            display_name="PromptList Create From Lists (Concat)",
+            display_name="PromptList Create From Lists (Chain)",
             category="Prompt List",
             description=cleandoc(f"{cls.__doc__ or ''}\n\n{TEMPLATE_HELP}"),
-            search_aliases=["concat", "concatenate", "merge lists", "combine lists", "quick chain",
-                            "并联", "串联", "串连", "合并", "拼接", "首尾相连"],
+            search_aliases=["chain", "stack layers", "apply in order", "layer lists",
+                            "并联", "串联", "串连", "叠加", "逐层", "合并"],
             inputs=[
                 io.Custom("STRING_PYLIST").Input(
                     "prompt_list", optional=True,
-                    tooltip="接上则把下面接进来的项当成模板去改这张列表；不接则只做拼接",
+                    tooltip="接上则从这张列表开始一层层叠加；不接则由第一张输入列表建表",
                 ),
                 io.Autogrow.Input(
                     "lists",
                     template=io.Autogrow.TemplatePrefix(
-                        input=io.Custom("STRING_PYLIST").Input("prompt_list", tooltip="按端口顺序首尾相连"),
+                        input=io.Custom("STRING_PYLIST").Input("prompt_list", tooltip="按端口顺序依次叠加的一层"),
                         prefix="list",
                         min=1,
                         max=100,
@@ -140,8 +140,10 @@ class PromptList_CreateFromLists(io.ComfyNode):
 
     @classmethod
     def execute(cls, lists: io.Autogrow.Type, prompt_list=None) -> io.NodeOutput:
-        templates = [item for value in lists.values() for item in (value or [])]
-        result = merge_templates(templates, prompt_list)
+        # 每张输入列表是一层：第一层建表，之后每层都套在当前结果上
+        result = prompt_list if prompt_list else []
+        for value in lists.values():
+            result = merge_templates(value or [], result)
         return io.NodeOutput(result, JOINED_SEPARATOR.join(result))
 
 

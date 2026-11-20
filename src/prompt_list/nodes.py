@@ -37,5 +37,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PromptList CreateFromStrings": "PromptList Create From Strings",
     "PromptList CreateFromStringsMulti": "PromptList Create From Strings (Multi)",
     "PromptList CreateFromUpstream": "PromptList Create From Upstream (Auto)",
-    "PromptList CreateFromLists": "PromptList Create From Lists (Concat)",
+    "PromptList CreateFromLists": "PromptList Create From Lists (Chain)",
 }

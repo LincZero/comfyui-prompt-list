@@ -1,4 +1,4 @@
-# Prompt List
+# Prompt List 开发备注
 
 > [!NOTE]
 > 该项目是使用 [cookiecutter](https://github.com/Comfy-Org/cookiecutter-comfy-extension) 模板创建的。它可以帮助你开始编写自定义节点，而无需担心 Python 环境配置。
