@@ -24,7 +24,7 @@ JOINED_TEXT_TOOLTIP = "整张列表用固定的 , 拼成的字符串，可直接
 TEMPLATE_HELP = f"""\
 接了 prompt_list 时，每个输入（文本框 / 每一行 / 连上的端口 / 接进来的项）就是对应项的模板：`{ITEM}` 代表该项原来的内容，也是默认值（等于不改）。
 写成 `{ITEM}, 新内容` 是追加到末尾、`新内容, {ITEM}` 是插到开头；不含 `{ITEM}` 时直接覆盖该项，留空则清空该项。
-比列表多出来的非空输入会追加成新项；列表比输入多时，多出来的项原样保留。
+比列表多出来的输入会按位置追加成新项（替换后是空的也占一项）；列表比输入多时，多出来的项原样保留。
 不接 prompt_list 时就是纯创建：输入按原顺序成为列表内容，`{ITEM}` 会被清掉。
 输出两个端：`prompt_list` 是列表本身，`joined_text` 是用 `{JOINED_SEPARATOR}` 拼好的整串（不用再接 Join To String）。"""
 
@@ -44,10 +44,8 @@ def merge_templates(templates, prompt_list):
         if index < len(result):
             result[index] = text.replace(ITEM, result[index])
         else:
-            # 列表更短：多出来的模板作为新项追加（空的就不追加，避免凭空多出空项）
-            value = text.replace(ITEM, "")
-            if value.strip():
-                result.append(value)
+            # 列表更短：多出来的模板作为新项追加（替换后是空的也占一项，保证“第 n 个输入 = 第 n 项”）
+            result.append(text.replace(ITEM, ""))
     return result
 
 
@@ -103,7 +101,7 @@ class PromptList_CreateFromLists(io.ComfyNode):
     """把并联的多张提示词列表串成一条加工链：每张输入列表依次叠到结果上（按端口顺序）。
 
     第一张（或接上的 prompt_list）负责建表，后面每张是一层模板：`{{item}}` 表示该项保持不变，
-    不含 `{{item}}` 就覆盖该项，比当前列表多出来的非空项追加到末尾。
+    不含 `{{item}}` 就覆盖该项，比当前列表多出来的项追加到末尾（空的也算一项）。
     接空列表的那一层不改变结果。
     另外再输出一个用 `,` 拼好的整串（等同于 Join To String，只是分隔符固定）。
     """

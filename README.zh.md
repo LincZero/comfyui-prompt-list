@@ -97,7 +97,7 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 
 - 端口数量和上面的自动增长节点一致（1–100 个）。
 - 一层就是一张列表：层的第 n 项改结果的第 n 项，`{{item}}` 表示保留该值，普通文字则覆盖它。
-- 层比结果短时，多出来的项原样保留；层比结果长时，多出来的非空项追加到末尾。
+- 层比结果短时，多出来的项原样保留；层比结果长时，多出来的项追加到末尾（空项也占一位）。
 - 某个端口接的是空列表时，这一层不改变结果。
 - 输出和其他创建节点一样是两个：列表本身，以及用 `,` 拼好的整串。
 
@@ -247,16 +247,14 @@ ComfyUI 本身有列表执行：输入是列表时，下游节点会逐项执行
 
 ```text
 result = list(prompt_list)                 # 没接上游时是空列表
-for index, template in enumerate(boxes):
+for index, template in enumerate(inputs):
     if index < len(result):
         # {{item}} → 该项原有的内容；完全不写 {{item}} 就是覆盖该项
         result[index] = template.replace("{{item}}", result[index])
     else:
-        # 文本框比列表长时，多出来的非空框追加成新项
-        extra = template.replace("{{item}}", "")
-        if extra.strip():
-            result.append(extra)
-# 文本框没有对应到的项，原样保留
+        # 输入比列表长时，多出来的输入追加成新项（替换后是空的也占一项）
+        result.append(template.replace("{{item}}", ""))
+# 输入没有对应到的项，原样保留
 ```
 
 所以"追加 / 替换 / 清空"这套说法，本质上就是你在输入里写什么：
@@ -280,7 +278,7 @@ for index, template in enumerate(boxes):
 | `["one", "two"]` | `{{item}}, masterpiece`、`best quality, {{item}}` | `["one, masterpiece", "best quality, two"]` |
 | `["one", "two"]` | `red`、*(空)* | `["red", ""]` |
 | `["one", "two", "three"]` | `A` | `["A", "two", "three"]` |
-| `["one"]` | `a`、`b`、*(空)* | `["a", "b"]` |
+| `["one"]` | `a`、`b`、*(空)* | `["a", "b", ""]` |
 | 无 | `{{item}}`、`{{item}}` | `["", ""]` |
 | 无 | `cat`、`dog` | `["cat", "dog"]` |
 

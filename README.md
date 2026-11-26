@@ -97,7 +97,7 @@ Lays several lists on top of each other as a pipeline: the first list (or the `p
 
 - Ports grow and shrink like the auto-grow node above (1–100).
 - One layer = one list: position *n* of the layer edits item *n* of the result, so `{{item}}` keeps that value and plain text overwrites it.
-- A layer shorter than the result leaves the remaining items alone; a longer one appends its extra non-empty items.
+- A layer shorter than the result leaves the remaining items alone; a longer one appends its extra items, empty ones included.
 - A port carrying an empty list changes nothing.
 - Outputs are the same two as the other create nodes: the list itself, and its `,`-joined text.
 
@@ -247,16 +247,14 @@ All five create nodes share one rule set. Only where the inputs come from differ
 
 ```text
 result = list(prompt_list)                 # empty when nothing is connected
-for index, template in enumerate(boxes):
+for index, template in enumerate(inputs):
     if index < len(result):
         # {{item}} → the item's current text; no {{item}} at all → overwrite the item
         result[index] = template.replace("{{item}}", result[index])
     else:
-        # a box beyond the list length appends a new item, unless it is empty
-        extra = template.replace("{{item}}", "")
-        if extra.strip():
-            result.append(extra)
-# items the boxes do not reach are left untouched
+        # an input beyond the list length appends a new item, even if it comes out empty
+        result.append(template.replace("{{item}}", ""))
+# items the inputs do not reach are left untouched
 ```
 
 So the whole "追加 / 替换 / 清空" vocabulary is just what you write in the input:
@@ -280,7 +278,7 @@ Some concrete results:
 | `["one", "two"]` | `{{item}}, masterpiece`, `best quality, {{item}}` | `["one, masterpiece", "best quality, two"]` |
 | `["one", "two"]` | `red`, *(empty)* | `["red", ""]` |
 | `["one", "two", "three"]` | `A` | `["A", "two", "three"]` |
-| `["one"]` | `a`, `b`, *(empty)* | `["a", "b"]` |
+| `["one"]` | `a`, `b`, *(empty)* | `["a", "b", ""]` |
 | none | `{{item}}`, `{{item}}` | `["", ""]` |
 | none | `cat`, `dog` | `["cat", "dog"]` |
 
